@@ -47,8 +47,6 @@ public class CardPage {
             By.cssSelector("[data-testid='card-back-actions-button']");
     private final By cardDoneStateButton =
             By.cssSelector("[data-testid='card-done-state-completion-button']");
-
-
     private final By archiveCardOption = By.xpath(
             "//button[contains(.,'Archive')" +
                     " or .//span[normalize-space()='Archive']]"
@@ -68,32 +66,31 @@ public class CardPage {
         );
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // LOCATORS — Harshit
-    // ─────────────────────────────────────────────────────────────────────────
+    //these are the declarations which are made by harshit
+    private By descriptionButton = By.cssSelector("button[data-testid='description-button']");
+    private By editDescriptionButton = By.cssSelector("button[aria-label='Edit description']");
+    private By descriptionField = By.id("ak-editor-textarea");
+    private By descriptionSaveButton = By.cssSelector("button[data-testid='description-save-button']");
+    private By labelsButton = By.xpath("//button[normalize-space()='Labels']");
+    private By closeCardButton = By.cssSelector("button[aria-label='Close dialog']");
+    private By datesButton = By.cssSelector("button[data-testid='card-back-due-date-button']");
+    private By saveDateButton = By.cssSelector("button[data-testid='save-date-button']");
+    private By dueDateField = By.cssSelector("input[data-testid='due-date-field']");
+    private By checklistButton = By.xpath("//button[normalize-space()='Checklist']");
+    private By checklistTitleField = By.id("id-checklist");
+    private By checklistAddButton = By.cssSelector("button[data-testid='checklist-add-button']");
+    private By checklistItemInput = By.cssSelector("textarea[data-testid='check-item-name-input']");
+    private By checklistItemAddButton = By.cssSelector("button[data-testid='check-item-add-button']");
 
-    private By descriptionButton       = By.cssSelector("button[data-testid='description-button']");
-    private By editDescriptionButton   = By.cssSelector("button[aria-label='Edit description']");
-    private By descriptionField        = By.id("ak-editor-textarea");
-    private By descriptionSaveButton   = By.cssSelector("button[data-testid='description-save-button']");
-    private By labelsButton            = By.xpath("//button[normalize-space()='Labels']");
-    private By closeCardButton         = By.cssSelector("button[aria-label='Close dialog']");
-    private By datesButton             = By.cssSelector("button[data-testid='card-back-due-date-button']");
-    private By saveDateButton          = By.cssSelector("button[data-testid='save-date-button']");
-    private By dueDateField            = By.cssSelector("input[data-testid='due-date-field']");
-    private By checklistButton         = By.xpath("//button[normalize-space()='Checklist']");
-    private By checklistTitleField     = By.id("id-checklist");
-    private By checklistAddButton      = By.cssSelector("button[data-testid='checklist-add-button']");
-    private By checklistItemInput      = By.cssSelector("textarea[data-testid='check-item-name-input']");
-    private By checklistItemAddButton  = By.cssSelector("button[data-testid='check-item-add-button']");
-    private By addToCardButton         = By.xpath("//button[@aria-label='Add to card']");
-    private By attachmentButton        = By.cssSelector("[data-testid='card-back-attachment-button']");
-    private By attachLinkInput         = By.cssSelector("input[data-testid='link-url']");
-    private By attachLinkSubmitButton  = By.cssSelector("[data-testid='link-picker-insert-button']");
-    private By attachmentsListItem     = By.cssSelector("[data-testid='attachment-links-list'] li");
-    private By coverButton             = By.cssSelector("[data-testid='card-back-cover-button']");
-    private By coverColorSwatch        = By.cssSelector("[data-testid^='color-tile-']");
-    private By coverAppliedIndicator   = By.cssSelector("[data-testid='card-cover']");
+    private By addToCardButton = By.xpath("//button[@aria-label='Add to card']");
+    private By attachmentButton = By.cssSelector("[data-testid='card-back-attachment-button']");
+    private By attachLinkInput = By.cssSelector("input[data-testid='link-url']");
+    private By attachLinkSubmitButton = By.cssSelector("[data-testid='link-picker-insert-button']");
+    private By attachmentsListItem = By.cssSelector("[data-testid='attachment-links-list'] li");
+
+    private By coverButton = By.cssSelector("[data-testid='card-back-cover-button']");
+    private By coverColorSwatch = By.cssSelector("[data-testid^='color-tile-']");
+    private By coverAppliedIndicator = By.cssSelector("[data-testid='card-cover']");
 
     // Dynamic locators — Harshit
     private By checklistItemCheckboxInput(String itemName) {
@@ -512,10 +509,33 @@ public class CardPage {
 
         System.out.println("STEP: Label selected: " + color);
     }
+    /**
+     * Get the "Add a card" button element for the current fixture list, for layout/rendering assertions.
+     */
+    public WebElement getAddCardButtonElement() {
+        By addCardBtn = By.xpath("//button[@aria-label='Add a card in " + TestData.listName + "']");
+        return wait.until(ExpectedConditions.elementToBeClickable(addCardBtn));
+    }
 
     /**
-     * Closes the open card modal and waits for the dialog overlay to fully dismiss.
+     * Get the card dialog's close button element, for layout/rendering assertions.
      */
+    public WebElement getCloseCardButtonElement() {
+        return wait.until(ExpectedConditions.elementToBeClickable(closeCardButton));
+    }
+
+    /**
+     * Get the description area/button element (whichever of add/edit is currently present),
+     * for layout/rendering assertions.
+     */
+    public WebElement getDescriptionAreaElement() {
+        List<WebElement> addButton = driver.findElements(descriptionButton);
+        By target = (!addButton.isEmpty() && addButton.get(0).isDisplayed())
+                ? descriptionButton
+                : editDescriptionButton;
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(target));
+    }
+
     public void closeCard() {
         System.out.println("STEP: Closing card...");
 
@@ -781,6 +801,17 @@ public class CardPage {
 
         System.out.println("STEP: Checklist item added successfully.");
     }
+
+    /**
+     * Get an existing checklist item's clickable checkbox row, for layout/rendering
+     * assertions - unlike the "add item" composer (which collapses on a fresh card
+     * open and needs an extra click to reveal), this row is always visible once the
+     * item exists, making it a stable assertion target regardless of composer state.
+     */
+    public WebElement getChecklistItemCheckboxElement(String itemName) {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(checklistItemCheckboxLabel(itemName)));
+    }
+
 
     /**
      * Returns true if the checklist item with the given name is visible.
@@ -1103,5 +1134,23 @@ public class CardPage {
         }
         clickCover();
         selectCoverColor();
+    }
+
+    /**
+     * Get every cover color swatch in the open cover popover, for layout/rendering
+     * assertions (a color grid is exactly the kind of element that clips at narrow
+     * viewport widths without necessarily causing page-level horizontal overflow).
+     */
+    public List<WebElement> getCoverColorSwatchElements() {
+        wait.until(ExpectedConditions.visibilityOfElementLocated(coverColorSwatch));
+        return driver.findElements(coverColorSwatch);
+    }
+
+    /**
+     * Dismisses the cover color popover without picking a color - same Escape-key
+     * approach used internally by selectCoverColor() once a color has been applied.
+     */
+    public void closeCoverPopover() {
+        new org.openqa.selenium.interactions.Actions(driver).sendKeys(Keys.ESCAPE).perform();
     }
 }

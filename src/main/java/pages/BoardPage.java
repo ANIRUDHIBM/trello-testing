@@ -380,6 +380,13 @@ public class BoardPage {
     }
 
     /**
+     * Get the board title element, for layout/rendering assertions.
+     */
+    public WebElement getBoardTitleElement() {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(boardTitleDisplay));
+    }
+
+    /**
      * Renames the board to the given new name.
      *
      * @param newName The new board title to set.
