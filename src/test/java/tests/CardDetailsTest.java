@@ -221,6 +221,53 @@ public class CardDetailsTest extends BaseTest {
         cardPage.closeCard();
     }
 
+    @Test
+    public void addWhitespaceChecklistItem() {
+
+        String checklistName = "Automation Checklist";
+        String checklistItem = "   ";
+
+        cardPage.openCard(TestData.cardName);
+        cardPage.clickChecklist();
+
+        if (!cardPage.isChecklistPresent(checklistName)) {
+                cardPage.enterChecklistName(checklistName);
+                cardPage.addChecklist();
+        }
+
+        // Try to add a checklist item containing only spaces
+        cardPage.enterChecklistItem(checklistItem);
+        cardPage.addChecklistItem();
+
+        Assert.assertFalse(
+                cardPage.isChecklistItemDisplayed(checklistItem),
+                "Whitespace-only checklist item should not be added."
+        );
+
+        cardPage.closeCard();
+    }
+
+    /*
+    @Test
+    public void setInvalidDueDate() {
+
+        String invalidDueDate = "99/99/9999";
+
+        cardPage.openCard(TestData.cardName);
+
+        cardPage.clickDates();
+        cardPage.enterDueDate(invalidDueDate);
+        cardPage.saveDueDate();
+
+        Assert.assertFalse(
+                cardPage.isDueDateDisplayed(invalidDueDate),
+                "Invalid due date should not be accepted."
+        );
+
+        cardPage.closeCard();
+    }
+    */
+
     /*@Test
     public void removeCardLabel() {
 

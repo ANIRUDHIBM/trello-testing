@@ -1,5 +1,4 @@
 package tests;
-
 import utils.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -9,13 +8,22 @@ import pages.ListPage;   // ← Add this import
 import pages.CardPage;
 import utils.TestData;
 
-
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.UnhandledAlertException;
 /**
  * Automation test suite for Trello Board Management.
  * Implements 8 comprehensive test cases simulating the complete lifecycle of a Trello Board.
  * Uses the Page Object Model (BoardPage) for separation of concerns and robust test design.
- */
+*/
 public class BoardManagementTest extends BaseTest {
+    private void cleanupTestBoard() {
+        try {
+            boardPage.closeBoard();
+            boardPage.deleteBoardPermanently();
+        } catch (Exception e) {
+            System.out.println("Cleanup warning: could not fully delete test board - " + e.getMessage());
+        }
+    }
 
     private static String boardUrl;
 
@@ -169,8 +177,51 @@ public class BoardManagementTest extends BaseTest {
         System.out.println("✅ TEST PASSED: Card '" + TestData.cardName + "' created successfully!");
 
     }
+    @Test(priority = 4, description = "BM-NEG-001: Board name with 500 characters")
+    public void test04_boardNameWithLongName() {
+        // Verify that the application can handle a long board name without truncation or corruption
+        String longName = "A".repeat(500) + "-" + System.currentTimeMillis();
+        boolean created = false;
+
+        try {
+            boardPage.createNewBoard(longName);
+            created = true;
+        } catch (TimeoutException e) {
+            System.out.println("500-character board name was rejected/timed out - acceptable.");
+        }
+
+        if (created) {
+            String actualTitle = boardPage.getBoardTitle();
+            Assert.assertEquals(actualTitle, longName,
+                    "Trello should display the long board name without truncation or corruption.");
+            cleanupTestBoard();
+        }
+    }
 
 
+    @Test(priority = 5, description = "BM-NEG-002: Script tag in board name must render as literal text")
+    public void test05_boardNameWithScriptInjection() {
+        // Verify that JavaScript entered in the board name is treated as text and not executed
+        String maliciousName = "<script>alert(1)</script>-" + System.currentTimeMillis();
+
+        try {
+            boardPage.createNewBoard(maliciousName);
+
+            String actualTitle = boardPage.getBoardTitle();
+
+            // Verify that the injected script is displayed as plain text
+            Assert.assertEquals(actualTitle, maliciousName,
+                    "Board title should render the injected string literally, not execute it.");
+
+        } catch (UnhandledAlertException e) {
+            // If an alert appears, the injected JavaScript was executed
+            driver.switchTo().alert().accept();
+
+            Assert.fail("Board name must NOT execute JavaScript (XSS vulnerability)");
+        }
+
+        cleanupTestBoard();
+    }
     /*
     // Rename Existing Trello Board logic goes here
     @Test(priority = 2, dependsOnMethods = "test01_createNewBoard", description = "BM-002: Rename the existing Trello board")

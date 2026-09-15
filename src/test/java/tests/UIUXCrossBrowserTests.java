@@ -254,4 +254,22 @@ public class UIUXCrossBrowserTests extends BaseTest {
         cardPage.closeCoverPopover();
         cardPage.closeCard();
     }
+    // ─────────────────────────────────────────────
+    // Negative UI/UX test
+    // ─────────────────────────────────────────────
+    @Test(description = "Card modal should not create horizontal overflow on mobile viewport")
+    public void testCardModalNoHorizontalOverflowOnMobile() {
+
+        ensureFixtureReady();
+        ResponsiveUtils.resizeViewport(driver, 375, 812);
+
+        cardPage.openCard(FIXED_CARD_NAME);
+
+        Assert.assertFalse(
+                ResponsiveUtils.hasHorizontalOverflow(driver),
+                "Card modal should not create horizontal horizontal overflow on mobile viewport"
+        );
+
+        cardPage.closeCard();
+    }
 }
