@@ -33,7 +33,7 @@ public class BaseTest {
     protected DashboardPage dashboardPage;
     protected TestConfig config;
 
-    @BeforeClass
+    @BeforeMethod
     public void setUp() {
         config = new TestConfig();
         driver = createDriver();
@@ -170,7 +170,7 @@ public class BaseTest {
         return CURRENT_DRIVER.get();
     }
 
-    @AfterClass
+    @AfterMethod
     public void tearDown() {
         if (driver != null) {
             driver.quit();

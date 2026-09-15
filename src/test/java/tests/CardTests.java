@@ -4,7 +4,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import pages.BoardPage;
 import pages.ListPage;
@@ -13,17 +13,13 @@ import utils.BaseTest;
 
 import java.time.Duration;
 
-
 public class CardTests extends BaseTest {
 
-    private BoardPage boardPage;
-    private ListPage listPage;
-    private CardPage cardPage;
+    private BoardPage     boardPage;
+    private ListPage      listPage;
+    private CardPage      cardPage;
     private WebDriverWait wait;
 
-    // ─────────────────────────────────────────────────────
-    // CONFIG: Update these to match your existing Trello data
-    // ─────────────────────────────────────────────────────
     private static final String EXISTING_BOARD_NAME = "My Trello Board";
     private static final String EXISTING_LIST_NAME  = "Today";
 
@@ -42,210 +38,428 @@ public class CardTests extends BaseTest {
         );
     }
 
+    private By cardNameLocator(String cardTitle) {
+        return By.xpath(
+                "//a[@data-testid='card-name' and text()='" + cardTitle + "']"
+        );
+    }
 
     // ─────────────────────────────────────────────────────
-    // SETUP: Login → Navigate to Board → Navigate to List
-    // Runs ONCE before all tests in this class
+    // BEFORE METHOD
+    // Runs before every @Test — BaseTest.setUp() has already
+    // created a fresh driver and maximised the window.
+    // This method logs in and navigates to the board + list.
     // ─────────────────────────────────────────────────────
-    @BeforeClass
-    public void setup() {
+    @BeforeMethod
+    public void navigateToBoard() {
         System.out.println("=================================================");
         System.out.println("SETUP: Logging in to Trello...");
         System.out.println("=================================================");
 
-        // ── Step 1: Login ─────────────────────────────────────────────────
         performLogin();
         System.out.println("SETUP: Login successful!");
 
-        // ── Step 2: Initialize wait and page objects ──────────────────────
         wait      = new WebDriverWait(driver, Duration.ofSeconds(20));
         boardPage = new BoardPage(driver);
         listPage  = new ListPage(driver);
         cardPage  = new CardPage(driver);
 
-        // ── Step 3: Wait until board tile is VISIBLE before clicking ──────
         System.out.println("SETUP: Waiting for board '" + EXISTING_BOARD_NAME + "' to appear...");
-        wait.until(
-                ExpectedConditions.visibilityOfElementLocated(
-                        boardTileLocator(EXISTING_BOARD_NAME)
-                )
-        );
-        System.out.println("SETUP: Board tile is visible!");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                boardTileLocator(EXISTING_BOARD_NAME)));
 
-        // ── Step 4: Wait until board tile is CLICKABLE then open it ───────
-        System.out.println("SETUP: Navigating to existing board: " + EXISTING_BOARD_NAME);
-        wait.until(
-                ExpectedConditions.elementToBeClickable(
-                        boardTileLocator(EXISTING_BOARD_NAME)
-                )
-        );
+        System.out.println("SETUP: Navigating to board: " + EXISTING_BOARD_NAME);
+        wait.until(ExpectedConditions.elementToBeClickable(
+                boardTileLocator(EXISTING_BOARD_NAME)));
         boardPage.openExistingBoard(EXISTING_BOARD_NAME);
-        System.out.println("SETUP: Board clicked!");
 
-        // ── Step 5: Wait until URL confirms we are on the board page ──────
-        System.out.println("SETUP: Waiting for board URL to load...");
+        System.out.println("SETUP: Waiting for board URL...");
         wait.until(ExpectedConditions.urlContains("/b/"));
 
-        // ── Step 6: Verify we landed on the correct board ─────────────────
         Assert.assertTrue(
                 driver.getCurrentUrl().contains("/b/"),
-                "SETUP FAILED: URL does not contain '/b/' — board navigation may have failed."
+                "SETUP FAILED: URL does not contain '/b/'"
         );
-        System.out.println("SETUP: Successfully opened board. URL: " + driver.getCurrentUrl());
+        System.out.println("SETUP: Board opened. URL: " + driver.getCurrentUrl());
 
-        // ── Step 7: Wait until the list HEADER is visible ─────────────────
-        System.out.println("SETUP: Waiting for list header '" + EXISTING_LIST_NAME + "' to appear...");
-        wait.until(
-                ExpectedConditions.visibilityOfElementLocated(
-                        listHeaderLocator(EXISTING_LIST_NAME)
-                )
-        );
-        System.out.println("SETUP: List header '" + EXISTING_LIST_NAME + "' is visible!");
+        System.out.println("SETUP: Waiting for list '" + EXISTING_LIST_NAME + "'...");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                listHeaderLocator(EXISTING_LIST_NAME)));
 
-        // ── Step 8: Wait until the "Add a card" button of the list is visible
-        System.out.println("SETUP: Waiting for 'Add a card' button of list '" + EXISTING_LIST_NAME + "' to appear...");
-
-        System.out.println("SETUP: List '" + EXISTING_LIST_NAME + "' is now visible on the board!");
-
-        // ── Step 9: Verify the list exists on the board ───────────────────
-        System.out.println("SETUP: Verifying list: " + EXISTING_LIST_NAME);
         listPage.openExistingList(EXISTING_LIST_NAME);
-        System.out.println("SETUP: List '" + EXISTING_LIST_NAME + "' located. Ready for card tests.");
+        System.out.println("SETUP: List '" + EXISTING_LIST_NAME + "' located.");
 
         System.out.println("=================================================");
-        System.out.println("SETUP COMPLETE: All tests will now run.");
+        System.out.println("SETUP COMPLETE.");
         System.out.println("=================================================");
     }
 
 
     // ─────────────────────────────────────────────────────
-    // BM-003: Create a Single Card
+    // PRIVATE HELPERS
     // ─────────────────────────────────────────────────────
-    @Test(priority = 1, description = "BM-003: Create a new card inside the existing list")
+
+    /**
+     * Creates a single card in the open list composer.
+     * Waits for the textarea, types the title, submits,
+     * and waits until the card is visible on the board.
+     */
+    private void createCard(String cardTitle) {
+        System.out.println("PRECONDITION: Creating card '" + cardTitle + "'...");
+
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.xpath("//*[@data-testid='list-card-composer-textarea']")));
+        cardPage.enterCardTitle(cardTitle);
+
+        wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("//button[@data-testid='list-card-composer-add-card-button']")));
+        cardPage.clickAddCardSubmit();
+
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                cardNameLocator(cardTitle)));
+
+        System.out.println("PRECONDITION: Card '" + cardTitle + "' created.");
+    }
+
+    /**
+     * Archives a card that is already visible on the board.
+     * Opens the card modal, clicks Actions → Archive,
+     * closes the modal, and closes the board menu panel.
+     */
+    private void archiveCard(String cardTitle) {
+        System.out.println("PRECONDITION: Archiving card '" + cardTitle + "'...");
+
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                cardNameLocator(cardTitle)));
+
+        cardPage.openCard(cardTitle);
+        cardPage.waitForCardModalToOpen();
+        cardPage.clickActionsButton();
+        cardPage.clickArchiveFromActions();
+        cardPage.closeCard();
+        cardPage.waitForCardModalToClose();
+
+        System.out.println("PRECONDITION: Card '" + cardTitle + "' archived.");
+    }
+
+
+    // ─────────────────────────────────────────────────────
+    // BM-003: Create Single Card
+    // ─────────────────────────────────────────────────────
+    @Test(description = "BM-003: Create a new card inside the existing list")
     public void test01_createCard() {
         String cardTitle = "My Automated Card";
 
         System.out.println("=================================================");
-        System.out.println("RUNNING: BM-003: Create a Single Card");
+        System.out.println("RUNNING: BM-003 — Create Single Card");
         System.out.println("=================================================");
 
-        // ── Step 1: Wait for "Add a card" button then click ───────────────
-//        System.out.println("STEP 1: Waiting for 'Add a card' button for list: " + EXISTING_LIST_NAME);
-//        wait.until(
-//                ExpectedConditions.elementToBeClickable(
-//                        listAddCardButtonLocator(EXISTING_LIST_NAME)
-//                )
-//        );
-//        System.out.println("STEP 1: Clicking 'Add a card' button...");
-//        cardPage.clickAddCardButton(EXISTING_LIST_NAME);
-
-        // ── Step 2: Wait for title input then enter title ─────────────────
-        System.out.println("STEP 2: Waiting for card title input to appear...");
-        wait.until(
-                ExpectedConditions.visibilityOfElementLocated(
-                        By.xpath("//*[@data-testid='list-card-composer-textarea']")
-                ));
-        System.out.println("STEP 2: Entering card title: " + cardTitle);
+        System.out.println("STEP 1: Entering card title: " + cardTitle);
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.xpath("//*[@data-testid='list-card-composer-textarea']")));
         cardPage.enterCardTitle(cardTitle);
 
-        // ── Step 3: Wait for submit button then click ─────────────────────
-        System.out.println("STEP 3: Waiting for submit button to be clickable...");
-        wait.until(
-                ExpectedConditions.elementToBeClickable(
-                        By.xpath("//button[@data-testid='list-card-composer-add-card-button']")
-                )
-        );
-        System.out.println("STEP 3: Submitting card...");
+        System.out.println("STEP 2: Submitting card...");
+        wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("//button[@data-testid='list-card-composer-add-card-button']")));
         cardPage.clickAddCardSubmit();
 
-        // ── Step 4: Wait for card to appear then verify ───────────────────
-        System.out.println("STEP 4: Waiting for card '" + cardTitle + "' to appear on board...");
-        wait.until(
-                ExpectedConditions.visibilityOfElementLocated(
-                        By.xpath("//a[@data-testid='card-name' and text()='" + cardTitle + "']")
-                )
-        );
-        System.out.println("STEP 4: Verifying card creation...");
-        boolean isCreated = cardPage.isCardCreated(cardTitle);
-        Assert.assertTrue(isCreated,
-                "❌ Card '" + cardTitle + "' was NOT found on the board!");
+        System.out.println("STEP 3: Verifying card on board...");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                cardNameLocator(cardTitle)));
 
-        System.out.println("✅ BM-003 PASSED: Card '" + cardTitle + "' created successfully!");
+        Assert.assertTrue(
+                cardPage.isCardCreated(cardTitle),
+                "❌ Card '" + cardTitle + "' was NOT found on the board!"
+        );
+
+        System.out.println("✅ BM-003 PASSED: Card '" + cardTitle + "' created!");
     }
 
 
     // ─────────────────────────────────────────────────────
-    // KAN-31: Create Multiple Cards (3 Cards)
+    // KAN-31: Create Multiple Cards
     // ─────────────────────────────────────────────────────
-    @Test(priority = 2,
-            description = "KAN-31: Create multiple cards (3 cards) inside the existing list",
-            dependsOnMethods = "test01_createCard")
+    @Test(description = "KAN-31: Create multiple cards (3 cards) inside the existing list")
     public void test02_createMultipleCards() {
         System.out.println("=================================================");
-        System.out.println("RUNNING: KAN-31: Create Multiple Cards (3 Cards)");
+        System.out.println("RUNNING: KAN-31 — Create Multiple Cards");
         System.out.println("=================================================");
 
-        // ── Step 1: Define the 3 card titles ──────────────────────────────
         String[] cardTitles = {
                 "Automated Card 1",
                 "Automated Card 2",
                 "Automated Card 3"
         };
 
-        // ── Step 2: Loop through each title and create a card ─────────────
+        for (int i = 0; i < cardTitles.length; i++) {
+            String cardTitle = cardTitles[i];
+            System.out.println("Creating Card " + (i + 1) + ": " + cardTitle);
+
+            wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    By.xpath("//*[@data-testid='list-card-composer-textarea']")));
+            cardPage.enterCardTitle(cardTitle);
+
+            wait.until(ExpectedConditions.elementToBeClickable(
+                    By.xpath("//button[@data-testid='list-card-composer-add-card-button']")));
+            cardPage.clickAddCardSubmit();
+
+            wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    cardNameLocator(cardTitle)));
+
+            Assert.assertTrue(
+                    cardPage.isCardCreated(cardTitle),
+                    "❌ Card '" + cardTitle + "' was NOT found!"
+            );
+            System.out.println("✅ Card created: " + cardTitle);
+        }
+
+        System.out.println("✅ KAN-31 PASSED: All 3 cards created!");
+    }
+
+
+    // ─────────────────────────────────────────────────────
+    // BM-004: Archive Single Card
+    // ─────────────────────────────────────────────────────
+    @Test(description = "BM-004: Archive a single card via Actions and verify in Archived Items")
+    public void test03_archiveSingleCard() {
+        String cardTitle = "My Automated Card";
+
+        System.out.println("=================================================");
+        System.out.println("RUNNING: BM-004 — Archive Single Card");
+        System.out.println("=================================================");
+
+        // ── Precondition: card must exist before archiving ────────────────
+        createCard(cardTitle);
+
+        System.out.println("STEP 1: Waiting for card '" + cardTitle + "'...");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                cardNameLocator(cardTitle)));
+
+        System.out.println("STEP 2: Opening card...");
+        cardPage.openCard(cardTitle);
+
+        System.out.println("STEP 3: Clicking Actions...");
+        cardPage.clickActionsButton();
+
+        System.out.println("STEP 4: Clicking Archive...");
+        cardPage.clickArchiveFromActions();
+        cardPage.closeCard();
+        cardPage.waitForCardModalToClose();
+
+        System.out.println("STEP 5: Opening Board Menu...");
+        boardPage.openBoardMenu();
+
+        System.out.println("STEP 6: Opening Archived Items...");
+        boardPage.openArchivedItems();
+        boardPage.waitForArchivedItemsPanel();
+
+        System.out.println("STEP 7: Verifying card in Archived Items...");
+        Assert.assertTrue(
+                cardPage.isArchivedCardListed(cardTitle),
+                "❌ Card '" + cardTitle + "' NOT found in Archived Items!"
+        );
+
+        // ── Close panel cleanly so browser state is tidy on teardown ─────
+        boardPage.closeBoardMenu();
+
+        System.out.println("✅ BM-004 PASSED: Card archived and verified!");
+    }
+
+
+    // ─────────────────────────────────────────────────────
+    // KAN-32: Archive Multiple Cards
+    // ─────────────────────────────────────────────────────
+    @Test(description = "KAN-32: Archive multiple cards via Actions and verify in Archived Items")
+    public void test04_archiveMultipleCards() {
+        System.out.println("=================================================");
+        System.out.println("RUNNING: KAN-32 — Archive Multiple Cards");
+        System.out.println("=================================================");
+
+        String[] cardTitles = {
+                "Automated Card 1",
+                "Automated Card 2",
+                "Automated Card 3"
+        };
+
+        // ── Precondition: create all cards first ──────────────────────────
+        System.out.println("PRECONDITION: Creating all cards...");
+        for (String title : cardTitles) {
+            createCard(title);
+        }
+        System.out.println("PRECONDITION: All cards created.");
+
+        // ── Archive and verify each card ──────────────────────────────────
+        for (int i = 0; i < cardTitles.length; i++) {
+            String cardTitle = cardTitles[i];
+            System.out.println("-------------------------------------------");
+            System.out.println("Archiving Card " + (i + 1) + ": " + cardTitle);
+
+            System.out.println("STEP 1: Waiting for card...");
+            wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    cardNameLocator(cardTitle)));
+
+            System.out.println("STEP 2: Opening card...");
+            cardPage.openCard(cardTitle);
+            cardPage.waitForCardModalToOpen();
+
+            System.out.println("STEP 3: Clicking Actions...");
+            cardPage.clickActionsButton();
+
+            System.out.println("STEP 4: Clicking Archive...");
+            cardPage.clickArchiveFromActions();
+            cardPage.closeCard();
+            cardPage.waitForCardModalToClose();
+
+            System.out.println("STEP 5: Opening Board Menu...");
+            boardPage.openBoardMenu();
+
+            System.out.println("STEP 6: Opening Archived Items...");
+            boardPage.openArchivedItems();
+            boardPage.waitForArchivedItemsPanel();
+
+            System.out.println("STEP 7: Verifying card in Archived Items...");
+            Assert.assertTrue(
+                    cardPage.isArchivedCardListed(cardTitle),
+                    "❌ Card '" + cardTitle + "' NOT found in Archived Items!"
+            );
+
+            // ── Close panel before next iteration ────────────────────────
+            boardPage.closeBoardMenu();
+
+            System.out.println("✅ Card " + (i + 1) + " archived and verified: " + cardTitle);
+        }
+
+        System.out.println("✅ KAN-32 PASSED: All 3 cards archived and verified!");
+    }
+
+
+    // ─────────────────────────────────────────────────────
+    // BM-005: Delete Single Archived Card
+    // ─────────────────────────────────────────────────────
+    @Test(description = "BM-005: Delete a single archived card from Archived Items and verify it is gone")
+    public void test05_deleteSingleArchivedCard() {
+        String cardTitle = "My Automated Card";
+
+        System.out.println("=================================================");
+        System.out.println("RUNNING: BM-005 — Delete Single Archived Card");
+        System.out.println("=================================================");
+
+        // ── Precondition: card must exist and be archived ─────────────────
+        createCard(cardTitle);
+        archiveCard(cardTitle);
+
+        // ── Step 1: Open Board Menu ───────────────────────────────────────
+        System.out.println("STEP 1: Opening Board Menu...");
+        boardPage.openBoardMenu();
+
+        // ── Step 2: Open Archived Items panel ────────────────────────────
+        System.out.println("STEP 2: Opening Archived Items panel...");
+        boardPage.openArchivedItems();
+        boardPage.waitForArchivedItemsPanel();
+        System.out.println("STEP 2: Archived Items panel is open.");
+
+        // ── Step 3: Wait for the target archived card to appear ───────────
+        System.out.println("STEP 3: Waiting for archived card '" + cardTitle + "' to appear...");
+        boardPage.waitForArchivedCardToAppear(cardTitle);
+        System.out.println("STEP 3: Archived card '" + cardTitle + "' is visible.");
+
+        // ── Step 4: Click Delete button for the archived card ─────────────
+        System.out.println("STEP 4: Clicking Delete button for: " + cardTitle);
+        boardPage.clickDeleteButtonForArchivedCard(cardTitle);
+        System.out.println("STEP 4: Delete button clicked.");
+
+        // ── Step 5: Confirm deletion in the popup dialog ──────────────────
+        System.out.println("STEP 5: Confirming deletion...");
+        boardPage.confirmCardDeletion(cardTitle);
+        System.out.println("STEP 5: Deletion confirmed.");
+
+        // ── Step 6: Verify the card is gone from Archived Items ───────────
+        System.out.println("STEP 6: Verifying card '" + cardTitle + "' is removed from Archived Items...");
+        Assert.assertTrue(
+                boardPage.isCardDeletedFromArchivedItems(cardTitle),
+                "❌ Card '" + cardTitle + "' is STILL in Archived Items after deletion!"
+        );
+
+        System.out.println("✅ BM-005 PASSED: Card '" + cardTitle + "' permanently deleted!");
+        System.out.println("=================================================");
+    }
+
+
+    // ─────────────────────────────────────────────────────
+    // KAN-33: Delete Multiple Archived Cards
+    // ─────────────────────────────────────────────────────
+    @Test(description = "KAN-33: Delete multiple archived cards from Archived Items and verify each is gone")
+    public void test06_deleteMultipleArchivedCards() {
+        System.out.println("=================================================");
+        System.out.println("RUNNING: KAN-33 — Delete Multiple Archived Cards");
+        System.out.println("=================================================");
+
+        String[] cardTitles = {
+                "Automated Card 1",
+                "Automated Card 2",
+                "Automated Card 3"
+        };
+
+        // ── Precondition: create then archive all cards ───────────────────
+        System.out.println("PRECONDITION: Creating all cards...");
+        for (String title : cardTitles) {
+            createCard(title);
+        }
+
+        System.out.println("PRECONDITION: Archiving all cards...");
+        for (String title : cardTitles) {
+            archiveCard(title);
+        }
+        System.out.println("PRECONDITION: All cards archived.");
+
+        // ── Delete and verify each card ───────────────────────────────────
         for (int i = 0; i < cardTitles.length; i++) {
             String cardTitle = cardTitles[i];
 
             System.out.println("-------------------------------------------");
-            System.out.println("Creating Card " + (i + 1) + " of " + cardTitles.length + ": " + cardTitle);
+            System.out.println("Deleting Archived Card " + (i + 1) + ": " + cardTitle);
 
-            // ── Step 2a: Wait for "Add a card" button then click ──────────
-//            System.out.println("STEP 2a: Waiting for 'Add a card' button for list: " + EXISTING_LIST_NAME);
-//            wait.until(
-//                    ExpectedConditions.elementToBeClickable(
-//                            listAddCardButtonLocator(EXISTING_LIST_NAME)
-//                    )
-//            );
-//            System.out.println("STEP 2a: Clicking 'Add a card' button...");
-//            cardPage.clickAddCardButton(EXISTING_LIST_NAME);
+            // ── Step 1: Open Board Menu ───────────────────────────────────
+            System.out.println("STEP 1: Opening Board Menu...");
+            boardPage.openBoardMenu();
 
-            // ── Step 2b: Wait for title input then enter title ────────────
-            System.out.println("STEP 2b: Waiting for card title input to appear...");
-            wait.until(
-                    ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//*[@data-testid='list-card-composer-textarea']")
-                    )
+            // ── Step 2: Open Archived Items panel ────────────────────────
+            System.out.println("STEP 2: Opening Archived Items panel...");
+            boardPage.openArchivedItems();
+            boardPage.waitForArchivedItemsPanel();
+            System.out.println("STEP 2: Archived Items panel is open.");
+
+            // ── Step 3: Wait for target archived card to appear ───────────
+            System.out.println("STEP 3: Waiting for archived card '" + cardTitle + "'...");
+            boardPage.waitForArchivedCardToAppear(cardTitle);
+            System.out.println("STEP 3: Card '" + cardTitle + "' found in archived panel.");
+
+            // ── Step 4: Click Delete button ───────────────────────────────
+            System.out.println("STEP 4: Clicking Delete button for: " + cardTitle);
+            boardPage.clickDeleteButtonForArchivedCard(cardTitle);
+            System.out.println("STEP 4: Delete button clicked.");
+
+            // ── Step 5: Confirm deletion ──────────────────────────────────
+            System.out.println("STEP 5: Confirming deletion...");
+            boardPage.confirmCardDeletion(cardTitle);
+            System.out.println("STEP 5: Deletion confirmed.");
+
+            // ── Step 6: Verify card is gone from Archived Items ───────────
+            System.out.println("STEP 6: Verifying '" + cardTitle + "' removed from Archived Items...");
+            Assert.assertTrue(
+                    boardPage.isCardDeletedFromArchivedItems(cardTitle),
+                    "❌ Card '" + cardTitle + "' is STILL in Archived Items after deletion!"
             );
-            System.out.println("STEP 2b: Entering card title: " + cardTitle);
-            cardPage.enterCardTitle(cardTitle);
 
-            // ── Step 2c: Wait for submit button then click ────────────────
-            System.out.println("STEP 2c: Waiting for submit button to be clickable...");
-            wait.until(
-                    ExpectedConditions.elementToBeClickable(
-                            By.xpath("//button[@data-testid='list-card-composer-add-card-button']")
-                    )
-            );
-            System.out.println("STEP 2c: Submitting card...");
-            cardPage.clickAddCardSubmit();
+            // ── Close panel before next iteration ────────────────────────
+            boardPage.closeBoardMenu();
 
-            // ── Step 2d: Wait for card to appear then verify ──────────────
-            System.out.println("STEP 2d: Waiting for card '" + cardTitle + "' to appear on board...");
-            wait.until(
-                    ExpectedConditions.visibilityOfElementLocated(
-                            By.xpath("//a[@data-testid='card-name' and text()='" + cardTitle + "']")
-                    )
-            );
-            System.out.println("STEP 2d: Verifying card '" + cardTitle + "' exists on board...");
-            boolean isCreated = cardPage.isCardCreated(cardTitle);
-            Assert.assertTrue(isCreated,
-                    "❌ Card '" + cardTitle + "' (Card " + (i + 1) + ") was NOT found on the board!");
-
-            System.out.println("✅ Card " + (i + 1) + ": '" + cardTitle + "' created successfully!");
+            System.out.println("✅ Card " + (i + 1) + " deleted: " + cardTitle);
         }
 
         System.out.println("-------------------------------------------");
-        System.out.println("✅ KAN-31 PASSED: All " + cardTitles.length + " cards created and verified!");
+        System.out.println("✅ KAN-33 PASSED: All 3 archived cards deleted and verified!");
         System.out.println("=================================================");
     }
 }
