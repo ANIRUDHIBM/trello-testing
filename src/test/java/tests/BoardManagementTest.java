@@ -2,6 +2,7 @@ package tests;
 
 import utils.BaseTest;
 import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import pages.BoardPage;
 import pages.ListPage;   // ← Add this import
@@ -16,9 +17,23 @@ import utils.TestData;
  */
 public class BoardManagementTest extends BaseTest {
 
+    private static String boardUrl;
+
     private BoardPage boardPage;
     private ListPage  listPage;
     private static final String UPDATED_BOARD_NAME  = "Renamed Automation Board";
+
+    @BeforeMethod
+    public void initPages() {
+        performLogin();
+        boardPage = new BoardPage(driver);
+        listPage = new ListPage(driver);
+
+        if (boardUrl != null) {
+            // Subsequent tests - navigate to already-created board
+            driver.get(boardUrl);
+        }
+    }
 
     // ─────────────────────────────────────────────────────
     // BM-001: Create Board
@@ -36,8 +51,6 @@ public class BoardManagementTest extends BaseTest {
         System.out.println("DEBUG: Current URL: " + driver.getCurrentUrl());
         System.out.println("DEBUG: Current Page Title: " + driver.getTitle());
 
-        boardPage = new BoardPage(driver);
-
         System.out.println(
                 "Step 1: Creating a new board named: " + TestData.boardName
         );
@@ -46,8 +59,10 @@ public class BoardManagementTest extends BaseTest {
 
         System.out.println("Step 2: Verifying board URL and display name.");
 
+        boardUrl = driver.getCurrentUrl();
+
         Assert.assertTrue(
-                driver.getCurrentUrl().contains("/b/"),
+                boardUrl.contains("/b/"),
                 "URL does not contain '/b/', board creation might have failed."
         );
 
@@ -78,18 +93,6 @@ public class BoardManagementTest extends BaseTest {
         System.out.println("=================================================");
         System.out.println("RUNNING: BM-002: Create a New List");
         System.out.println("=================================================");
-
-        // ──────────────────────────────────────────
-        // STEP 2: Initialize ListPage
-        // ──────────────────────────────────────────
-        System.out.println("STEP 2: Initializing ListPage...");
-        listPage = new ListPage(driver);
-
-        // ──────────────────────────────────────────
-        // STEP 3: Click "Add a list" Button
-        // ──────────────────────────────────────────
-//        System.out.println("STEP 3: Clicking Add a list...");
-//        listPage.clickAddListButton();
 
         // ──────────────────────────────────────────
         // STEP 4: Enter List Name

@@ -47,7 +47,14 @@ public class BaseTest {
         driver = createDriver();
         CURRENT_DRIVER.set(driver);
         driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        driver.manage().window().maximize();
+        
+        // Set window size explicitly for headless mode (maximize doesn't work in headless)
+        boolean headless = Boolean.parseBoolean(config.getProperty("headless", "false"));
+        if (headless) {
+            driver.manage().window().setSize(new org.openqa.selenium.Dimension(1920, 1080));
+        } else {
+            driver.manage().window().maximize();
+        }
 
         loginPage = new LoginPage(driver);
         dashboardPage = new DashboardPage(driver);
@@ -55,10 +62,10 @@ public class BaseTest {
 
     /**
      * Creates the WebDriver for the browser configured via the "browser" key
-     * (firefox | chrome | edge, default firefox). Set "headless=true" for CI runs.
+     * (firefox | chrome | edge, default chrome). Set "headless=true" for CI runs.
      */
     private WebDriver createDriver() {
-        String browser = config.getProperty("browser", "firefox").toLowerCase();
+        String browser = config.getProperty("browser", "chrome").toLowerCase();
         boolean headless = Boolean.parseBoolean(config.getProperty("headless", "false"));
 
         switch (browser) {
@@ -68,6 +75,7 @@ public class BaseTest {
                 if (headless) {
                     chromeOptions.addArguments("--headless=new", "--window-size=1920,1080");
                 }
+                chromeOptions.addArguments("--disable-blink-features=AutomationControlled");
                 return new ChromeDriver(chromeOptions);
             case "edge":
                 WebDriverManager.edgedriver().setup();
@@ -82,6 +90,8 @@ public class BaseTest {
                 FirefoxOptions firefoxOptions = new FirefoxOptions();
                 if (headless) {
                     firefoxOptions.addArguments("-headless");
+                    firefoxOptions.addArguments("--width=1920");
+                    firefoxOptions.addArguments("--height=1080");
                 }
                 firefoxOptions.addPreference("dom.webnotifications.enabled", false);
                 firefoxOptions.addPreference("dom.push.enabled", false);
@@ -151,7 +161,15 @@ public class BaseTest {
         secondDriver = createDriver();
         CURRENT_SECOND_DRIVER.set(secondDriver);
         secondDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        secondDriver.manage().window().maximize();
+        
+        // Set window size for headless, maximize for headed
+        boolean headless = Boolean.parseBoolean(config.getProperty("headless", "false"));
+        if (headless) {
+            secondDriver.manage().window().setSize(new org.openqa.selenium.Dimension(1920, 1080));
+        } else {
+            secondDriver.manage().window().maximize();
+        }
+        
         secondLoginPage = new LoginPage(secondDriver);
         secondDashboardPage = new DashboardPage(secondDriver);
 
@@ -181,6 +199,9 @@ public class BaseTest {
      */
     static WebDriver currentSecondDriver() {
         return CURRENT_SECOND_DRIVER.get();
+    }
+
+    /**
      * Dismisses the cookie-consent banner if it appears (fresh sessions only).
      * Left unhandled, the banner can intercept clicks meant for board tiles / buttons.
      */

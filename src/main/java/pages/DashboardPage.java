@@ -182,6 +182,12 @@ public class DashboardPage {
             WebElement button = wait.until(ExpectedConditions.visibilityOfElementLocated(notificationsButtonLocator));
             String ariaLabel = button.getAttribute("aria-label");
             return ariaLabel != null && !ariaLabel.trim().startsWith("0 ");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Check whether a board with the given name is already present on the dashboard.
      * Used for idempotent test fixtures - reuse an existing board instead of creating a duplicate.
      *
@@ -222,21 +228,6 @@ public class DashboardPage {
     }
 
     /**
-     * Open a board from the dashboard by name. Assumes isBoardVisible(boardName) is
-     * already true, or the tile is otherwise present without a refresh.
-     *
-     * @param boardName Name of the board to open
-     */
-    public void openBoard(String boardName) {
-        List<WebElement> tiles = wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(boardTileLinkLocator));
-        for (WebElement tile : tiles) {
-            if (tile.getText().trim().equals(boardName)) {
-                tile.click();
-                wait.until(ExpectedConditions.urlContains("/b/"));
-                return;
-            }
-        }
-        throw new IllegalStateException("No board found with name: " + boardName);
      * Opens an existing board by name from the dashboard.
      *
      * @param boardName Board name to open

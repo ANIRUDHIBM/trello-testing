@@ -31,6 +31,28 @@ public class CollaborationTests extends BaseTest {
     private String secondAccountName() {
         return "Rashmi";
     }
+    
+    /**
+     * Ensures a board exists, creating it if missing, then opens it.
+     * Returns the BoardPage object for the opened board.
+     */
+    private BoardPage ensureBoardExists(DashboardPage dashboard, String boardName) {
+        if (dashboard.isBoardPresent(boardName)) {
+            dashboard.openBoard(boardName);
+        } else {
+            System.out.println("FIXTURE: Board '" + boardName + "' not found, creating it...");
+            BoardPage tempBoard = new BoardPage(driver);
+            tempBoard.createNewBoard(boardName);
+            
+            // Wait for board to finish initializing (default list to appear)
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return new BoardPage(driver);
+    }
 
     /**
      * Test Case: Invite Member to Board
@@ -43,9 +65,8 @@ public class CollaborationTests extends BaseTest {
         performSecondLogin();
 
         String boardName = "Collab-Invite";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
-        BoardPage board = new BoardPage(driver);
         board.openShareDialog();
         board.inviteMemberByEmail(secondAccountEmail());
 
@@ -67,11 +88,10 @@ public class CollaborationTests extends BaseTest {
         performSecondLogin();
 
         String boardName = "Collab-Admin";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
         String secondNameAdmin = secondAccountName();
 
-        BoardPage board = new BoardPage(driver);
         board.openShareDialog();
         board.inviteMemberByEmail(secondAccountEmail());
         board.setMemberRole(secondNameAdmin, "Admin");
@@ -99,11 +119,10 @@ public class CollaborationTests extends BaseTest {
         performSecondLogin();
 
         String boardName = "Collab-Observer";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
         String secondNameObserver = secondAccountName();
 
-        BoardPage board = new BoardPage(driver);
         board.openShareDialog();
         board.inviteMemberByEmail(secondAccountEmail());
         board.setMemberRole(secondNameObserver, "Observer");
@@ -131,9 +150,8 @@ public class CollaborationTests extends BaseTest {
         performSecondLogin();
 
         String boardName = "Collab-Assign";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
-        BoardPage board = new BoardPage(driver);
         board.openShareDialog();
         board.inviteMemberByEmail(secondAccountEmail());
         board.closeDialog();
@@ -172,9 +190,8 @@ public class CollaborationTests extends BaseTest {
 
         String secondEmail = secondAccountEmail();
         String boardName = "Collab-Mention";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
-        BoardPage board = new BoardPage(driver);
         board.openShareDialog();
         board.inviteMemberByEmail(secondEmail);
         board.closeDialog();
@@ -200,9 +217,8 @@ public class CollaborationTests extends BaseTest {
         DashboardPage dashboard = performLogin();
 
         String boardName = "Collab-Comment";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
-        BoardPage board = new BoardPage(driver);
         board.ensureCardExists("To Do", "Card for comment");
         board.openCard("Card for comment");
 
@@ -224,9 +240,8 @@ public class CollaborationTests extends BaseTest {
 
         String secondEmail = secondAccountEmail();
         String boardName = "Collab-Watch";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
-        BoardPage board = new BoardPage(driver);
         board.openShareDialog();
         board.inviteMemberByEmail(secondEmail);
         board.closeDialog();
@@ -261,9 +276,8 @@ public class CollaborationTests extends BaseTest {
         DashboardPage dashboard = performLogin();
 
         String boardName = "Collab-Activity";
-        dashboard.openBoard(boardName);
+        BoardPage board = ensureBoardExists(dashboard, boardName);
 
-        BoardPage board = new BoardPage(driver);
         board.ensureCardExists("To Do", "Card for activity log");
         board.openCard("Card for activity log");
 

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="Trello Tests - Core Suite" parallel="false" verbose="1">
+    <test name="Core Tests (No Special Prerequisites)">
+        <packages>
+            <package name="tests"/>
+        </packages>
+        <classes>
+            <!-- Exclude LoginTests - these are standalone auth tests -->
+            <class name="tests.LoginTests">
+                <methods>
+                    <exclude name=".*"/>
+                </methods>
+            </class>
+            <!-- Exclude CollaborationTests - requires second Trello account (TRELLO_EMAIL_SECOND) -->
+            <class name="tests.CollaborationTests">
+                <methods>
+                    <exclude name=".*"/>
+                </methods>
+            </class>
+            <!-- Exclude DragAndDrop_Test - requires pre-configured "Trello Project" board -->
+            <class name="tests.DragAndDrop_Test">
+                <methods>
+                    <exclude name=".*"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+</suite>
