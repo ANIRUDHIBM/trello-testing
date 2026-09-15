@@ -1,5 +1,6 @@
 package tests;
 
+import org.openqa.selenium.UnhandledAlertException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -106,5 +107,44 @@ public class ListTests extends BaseTest {
                 countAfter, countBefore + 1,
                 "Copying a list should increase the total list count by exactly one"
         );
+    }
+
+    @Test
+    // Verify that a list cannot be created when the list name contains only whitespace
+    public void TC06_whitespaceOnlyListName() {
+        listPage.waitForBoardToLoad();
+        int countBefore = listPage.getListCount();
+
+        listPage.clickAddListButton();
+        listPage.enterListName("     ");
+        listPage.clickAddListSubmit();
+
+        int countAfter = listPage.getListCount();
+
+        Assert.assertEquals(countAfter, countBefore,
+                "A new list should NOT be created when the list name is only whitespace");
+    }
+
+
+    @Test
+    // Verify that JavaScript entered in the list name is not executed as code
+    public void TC07_scriptInjectionListName() {
+        String maliciousName = "<script>alert(1)</script>-" + System.currentTimeMillis();
+
+        boolean alertFired = false;
+        try {
+            listPage.createList(maliciousName);
+        } catch (UnhandledAlertException e) {
+            alertFired = true;
+            driver.switchTo().alert().accept();
+        }
+
+        Assert.assertFalse(alertFired,
+                "List name must NOT execute as JavaScript (XSS vulnerability)");
+
+        if (!alertFired) {
+            Assert.assertTrue(listPage.getListOrder().contains(maliciousName),
+                    "List name should render the injected string literally, not execute it or strip it silently");
+        }
     }
 }

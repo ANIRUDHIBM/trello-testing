@@ -1,5 +1,6 @@
 package tests;
 
+import org.openqa.selenium.UnhandledAlertException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import utils.BaseTest;
@@ -110,5 +111,35 @@ public class LoginTests extends BaseTest {
 
         Assert.assertTrue(dashboardPage.isLoggedOut(),
                 "User should be logged out successfully");
+    }
+
+    @Test(priority = 6, description = "Verify script injection in email field is neither executed nor reflected unescaped")
+    public void testScriptInjectionInEmailField() {
+        String maliciousEmail = "<script>alert(1)</script>@test.com";
+        navigateToLoginPage();
+        loginPage.enterEmail(maliciousEmail);
+
+        boolean alertFired = false;
+        try {
+                if (loginPage.isContinueButtonEnabled()) {
+                loginPage.clickContinueAfterEmail();
+                }
+                loginPage.isPasswordStepDisplayed(); // also acts as a short settle-wait
+        } catch (UnhandledAlertException e) {
+                // If this fires, the script actually executed - a real XSS vulnerability
+                alertFired = true;
+                driver.switchTo().alert().accept();
+        }
+
+        Assert.assertFalse(alertFired,
+                "Script tag in email field must NOT execute as JavaScript (XSS vulnerability)");
+
+        // Second check: if Trello shows an error mentioning the email, it must come back
+        // as literal, escaped text - not silently stripped or (worse) rendered as real HTML.
+        if (loginPage.isErrorMessageDisplayed()) {
+                String errorText = loginPage.getErrorMessage();
+                Assert.assertFalse(errorText.contains("<script>"),
+                        "If the email is echoed in an error message, it must be escaped, not raw HTML");
+        }
     }
 }
