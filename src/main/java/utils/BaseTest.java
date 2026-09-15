@@ -47,7 +47,7 @@ public class BaseTest {
         driver = createDriver();
         CURRENT_DRIVER.set(driver);
         driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        
+
         // Set window size explicitly for headless mode (maximize doesn't work in headless)
         boolean headless = Boolean.parseBoolean(config.getProperty("headless", "false"));
         if (headless) {
@@ -62,10 +62,10 @@ public class BaseTest {
 
     /**
      * Creates the WebDriver for the browser configured via the "browser" key
-     * (firefox | chrome | edge, default chrome). Set "headless=true" for CI runs.
+     * (firefox | chrome | edge, default firefox). Set "headless=true" for CI runs.
      */
     private WebDriver createDriver() {
-        String browser = config.getProperty("browser", "chrome").toLowerCase();
+        String browser = config.getProperty("browser", "firefox").toLowerCase();
         boolean headless = Boolean.parseBoolean(config.getProperty("headless", "false"));
 
         switch (browser) {
@@ -161,7 +161,7 @@ public class BaseTest {
         secondDriver = createDriver();
         CURRENT_SECOND_DRIVER.set(secondDriver);
         secondDriver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
-        
+
         // Set window size for headless, maximize for headed
         boolean headless = Boolean.parseBoolean(config.getProperty("headless", "false"));
         if (headless) {
@@ -169,7 +169,7 @@ public class BaseTest {
         } else {
             secondDriver.manage().window().maximize();
         }
-        
+
         secondLoginPage = new LoginPage(secondDriver);
         secondDashboardPage = new DashboardPage(secondDriver);
 
