@@ -1,11 +1,6 @@
 package pages;
 
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -722,24 +717,6 @@ public class CardPage {
         return wait.until(ExpectedConditions.elementToBeClickable(addCardBtn));
     }
 
-    /**
-     * Get the card dialog's close button element, for layout/rendering assertions.
-     */
-    public WebElement getCloseCardButtonElement() {
-        return wait.until(ExpectedConditions.elementToBeClickable(closeCardButton));
-    }
-
-    /**
-     * Get the description area/button element (whichever of add/edit is currently present),
-     * for layout/rendering assertions.
-     */
-    public WebElement getDescriptionAreaElement() {
-        List<WebElement> addButton = driver.findElements(descriptionButton);
-        By target = (!addButton.isEmpty() && addButton.get(0).isDisplayed())
-                ? descriptionButton
-                : editDescriptionButton;
-        return wait.until(ExpectedConditions.visibilityOfElementLocated(target));
-    }
 
     public void closeCard() {
 
@@ -1001,24 +978,6 @@ public class CardPage {
         addButton.click();
 
         System.out.println("STEP: Checklist item added successfully.");
-    }
-
-    /**
-     * Get an existing checklist item's clickable checkbox row, for layout/rendering
-     * assertions - unlike the "add item" composer (which collapses on a fresh card
-     * open and needs an extra click to reveal), this row is always visible once the
-     * item exists, making it a stable assertion target regardless of composer state.
-     */
-    public WebElement getChecklistItemCheckboxElement(String itemName) {
-        return wait.until(ExpectedConditions.visibilityOfElementLocated(checklistItemCheckboxLabel(itemName)));
-    }
-    /**
-     * The checklist item's name is only exposed via the aria-label of its checkbox input
-     * in this Trello UI - there is no separate visible text element carrying the name, so
-     * this is the one reliable locator for a specific item.
-     */
-    private By checklistItemCheckboxInput(String itemName) {
-        return By.xpath("//input[@type='checkbox' and @aria-label='" + itemName + "']");
     }
 
     /**

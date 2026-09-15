@@ -24,6 +24,38 @@ public class BoardPage {
     private final WebDriver driver;
     private final WebDriverWait wait;
 
+    // Board Menu / Archive Panel
+
+    private By archivedCardItemLocator(String cardTitle) {
+        return By.xpath(
+                "//div[@data-testid='archived-card']" +
+                        "[.//a[@data-testid='card-name' and normalize-space(text())='" + cardTitle + "']]"
+        );
+    }
+
+    private By deleteButtonInsideArchivedCard(String cardTitle) {
+        return By.cssSelector(
+                "button[aria-label='Delete " + cardTitle + "']"
+        );
+    }
+
+    private final By boardMenuButton = By.cssSelector(
+            "button[aria-label='Show menu']"
+    );
+
+    private final By closePanelButton = By.cssSelector(
+            "button[aria-label='Close popover']"
+    );
+
+    private final By archivedItemsOption = By.xpath(
+            "//button[.//div[normalize-space(text())='Archived items']]"
+    );
+
+
+    private final By archivedItemsPanel = By.cssSelector(
+            "div[data-testid='board-menu-container']"
+    );
+
     private By addListButtonLocator = By.cssSelector("[data-testid='list-name-textarea'][placeholder]");
     private By listComposerOpenButtonLocator = By.cssSelector("[data-testid='list-composer-button']");
     private By listComposerAddButtonLocator = By.cssSelector("button[data-testid='list-composer-add-list-button']");
@@ -980,7 +1012,7 @@ public class BoardPage {
 
         try {
             WebElement confirmBtn = wait.until(
-                    ExpectedConditions.presenceOfElementLocated(boardDeleteConfirmBtn)
+                    ExpectedConditions.presenceOfElementLocated(deleteConfirmBtn)
             );
             System.out.println(
                     "[DEBUG deleteBoardPermanently] boardDeleteConfirmBtn found — text: '" +
@@ -1032,7 +1064,7 @@ public class BoardPage {
             // otherwise the very next openBoardMenu() call can still be
             // intercepted by the partially-visible panel.
             wait.until(
-                    ExpectedConditions.invisibilityOfElementLocated(archivedItemPanel)
+                    ExpectedConditions.invisibilityOfElementLocated(archivedItemsPanel)
             );
             System.out.println("[BoardPage] Panel fully dismissed.");
 
