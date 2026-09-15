@@ -9,6 +9,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Page Object Model for Trello Dashboard/Home Page
@@ -27,6 +28,8 @@ public class DashboardPage {
     private By headerLocator = By.id("header");
     private By logoutButtonLocator = By.cssSelector("button[data-testid='account-menu-logout']");
     private By logoutSubmitButtonLocator = By.id("logout-submit");
+    private By notificationsButtonLocator = By.cssSelector("button[data-testid='header-notifications-button']");
+    private By boardTileLinkLocator = By.cssSelector("a[href^='/b/']");
 
     // Constructor
     public DashboardPage(WebDriver driver) {
@@ -168,6 +171,23 @@ public class DashboardPage {
     }
 
     /**
+     * Check whether the header notification bell shows an unread indicator.
+     * Used by collaboration tests to verify a mention, assignment, or watched-card
+     * update reached the other user.
+     *
+     * @return true if an unread notification indicator is visible
+     */
+    public boolean hasUnreadNotifications() {
+        try {
+            WebElement button = wait.until(ExpectedConditions.visibilityOfElementLocated(notificationsButtonLocator));
+            String ariaLabel = button.getAttribute("aria-label");
+            return ariaLabel != null && !ariaLabel.trim().startsWith("0 ");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Check whether a board with the given name is already present on the dashboard.
      * Used for idempotent test fixtures - reuse an existing board instead of creating a duplicate.
      *
@@ -178,6 +198,30 @@ public class DashboardPage {
         try {
             By boardTile = By.xpath("//a[normalize-space()='" + boardName + "']");
             return wait.until(ExpectedConditions.visibilityOfElementLocated(boardTile)).isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check whether a board with the given name is visible on the dashboard - used to
+     * verify a shared board reaches an invited member. Refreshes the page first so a
+     * board shared after this page loaded is picked up.
+     *
+     * @param boardName Name of the board to look for
+     * @return true if a matching board tile is found
+     */
+    public boolean isBoardVisible(String boardName) {
+        try {
+            driver.navigate().refresh();
+            return wait.until(d -> {
+                for (WebElement tile : d.findElements(boardTileLinkLocator)) {
+                    if (tile.getText().trim().equals(boardName)) {
+                        return true;
+                    }
+                }
+                return false;
+            });
         } catch (Exception e) {
             return false;
         }

@@ -1,8 +1,16 @@
 package pages;
 
-import org.openqa.selenium.*;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import utils.TestData;
+
 import java.time.Duration;
 import java.util.List;
 import utils.TestData;
@@ -92,6 +100,20 @@ public class CardPage {
     private By coverColorSwatch = By.cssSelector("[data-testid^='color-tile-']");
     private By coverAppliedIndicator = By.cssSelector("[data-testid='card-cover']");
 
+    // Collaboration locators (for comments, members, watching)
+    private By cardBackPanelLocator = By.cssSelector("[data-testid='card-back-panel']");
+    private By addToCardButtonLocator = By.cssSelector("button[aria-label='Add to card']");
+    private By addMembersMenuItemLocator = By.cssSelector("button[data-testid='card-back-members-button']");
+    private By memberSearchInputLocator = By.cssSelector("input[aria-label='Search members']");
+    private By memberSearchResultLocator = By.cssSelector("button[data-testid='choose-member-item-add-member-button']");
+    private By assignedMemberAvatarLocator = By.cssSelector("button[data-testid='card-back-member-avatar']");
+    private By newCommentSkeletonButtonLocator = By.cssSelector("button[data-testid='card-back-new-comment-input-skeleton']");
+    private By commentEditorLocator = By.cssSelector("[data-testid='editor-content-container'] .ProseMirror");
+    private By commentSaveButtonLocator = By.cssSelector("button[data-testid='card-back-comment-save-button']");
+    private By actionsButtonLocator = By.cssSelector("button[data-testid='card-back-actions-button']");
+    private By subscribedButtonLocator = By.cssSelector("button[data-testid='card-back-subscribed-button']");
+    private By activityFeedItemLocator = By.cssSelector("[data-testid='card-back-action']");
+
     // Dynamic locators — Harshit
     private By checklistItemCheckboxInput(String itemName) {
         return By.xpath(
@@ -122,13 +144,70 @@ public class CardPage {
         this.wait   = new WebDriverWait(driver, Duration.ofSeconds(15));
     }
 
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // METHODS — Anirudh
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────
+    // COLLABORATION METHODS (Members, Comments, Watching)
+    // ─────────────────────────────────────────────
 
     /**
-     * Clicks on "My Trello Board" from the dashboard.
+     * Check whether the card detail panel is currently open.
+     */
+    public boolean isCardOpen() {
+        try {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(cardBackPanelLocator)).isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Assign a member to the currently open card via the Add to card > Members popover.
+     */
+    public void addMember(String emailOrUsernameFragment) {
+        WebElement addToCardBtn = wait.until(ExpectedConditions.elementToBeClickable(addToCardButtonLocator));
+        addToCardBtn.click();
+
+        WebElement membersItem = wait.until(ExpectedConditions.elementToBeClickable(addMembersMenuItemLocator));
+        membersItem.click();
+
+        if (isMemberAssigned(emailOrUsernameFragment)) {
+            new Actions(driver).sendKeys(Keys.ESCAPE).perform();
+            return;
+        }
+
+        WebElement searchInput = wait.until(ExpectedConditions.visibilityOfElementLocated(memberSearchInputLocator));
+        searchInput.sendKeys(emailOrUsernameFragment);
+
+        WebElement memberButton = wait.until(ExpectedConditions.elementToBeClickable(memberSearchResultLocator));
+        memberButton.click();
+
+        new Actions(driver).sendKeys(Keys.ESCAPE).perform();
+        new WebDriverWait(driver, Duration.ofSeconds(30))
+                .until(d -> isMemberAssigned(emailOrUsernameFragment));
+    }
+
+    /**
+     * Check whether a member is assigned to the currently open card.
+     */
+    public boolean isMemberAssigned(String nameOrUsernameFragment) {
+        try {
+            List<WebElement> avatars = driver.findElements(assignedMemberAvatarLocator);
+            for (WebElement avatar : avatars) {
+                String title = avatar.getAttribute("title");
+                if (title != null && title.contains(nameOrUsernameFragment)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+
+    // METHODS
+
+    /**
+     * Clicks on "My Trello Board" from the dashboard
      */
     public void clickMyTrelloBoard() {
         System.out.println("STEP: Clicking on 'My Trello Board'...");
@@ -142,6 +221,7 @@ public class CardPage {
 
         board.click();
 
+        // Wait until the board URL is loaded
         wait.until(ExpectedConditions.urlContains("my-trello-board"));
         System.out.println("STEP: 'My Trello Board' opened successfully.");
     }
@@ -303,6 +383,7 @@ public class CardPage {
     }
 
 
+
     // ─────────────────────────────────────────────────────────────────────────
     // METHODS — Harshit
     // ─────────────────────────────────────────────────────────────────────────
@@ -323,6 +404,9 @@ public class CardPage {
         );
         By closeDialogButton = By.cssSelector("button[aria-label='Close dialog']");
 
+        // The click occasionally doesn't open the modal (board re-render timing) -
+        // retry with a JS-click fallback rather than failing outright, same pattern
+        // used for DashboardPage.openBoard().
         for (int attempt = 1; attempt <= 2; attempt++) {
             WebElement cardElement = wait.until(
                     ExpectedConditions.elementToBeClickable(card)
@@ -373,8 +457,11 @@ public class CardPage {
      * button is replaced by an "Edit description" button — picks whichever is present.
      */
     public void clickDescription() {
+
         System.out.println("STEP: Clicking Description...");
 
+        // Once a description is already saved, the "Add a more detailed description"
+        // button is replaced by an "Edit description" button - pick whichever is present.
         List<WebElement> addButton = driver.findElements(descriptionButton);
         By target = (!addButton.isEmpty() && addButton.get(0).isDisplayed())
                 ? descriptionButton
@@ -402,6 +489,9 @@ public class CardPage {
         );
 
         field.click();
+        // The field may already contain previously-saved text (Edit flow on a reused
+        // fixture card) - it's a rich-text editor, not a plain input, so .clear() is a
+        // no-op; select-all + delete first or the new text gets interleaved with the old.
         field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
         field.sendKeys(description);
     }
@@ -462,6 +552,121 @@ public class CardPage {
 
         } catch (Exception e) {
             System.out.println("Saved description not found: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Post a plain comment on the currently open card.
+     *
+     * @param text Comment text
+     */
+    public void postComment(String text) {
+        WebElement editor = openCommentEditor();
+        editor.sendKeys(text);
+        saveComment();
+    }
+
+    /**
+     * Post a comment that @mentions another member, then appends the rest of the comment.
+     *
+     * @param mentionFragment Fragment of the mentioned member's name or username (without "@")
+     * @param commentText     Remaining comment text to append after the mention
+     */
+    public void postCommentMentioning(String mentionFragment, String commentText) {
+        WebElement editor = openCommentEditor();
+        editor.sendKeys("@");
+
+        WebElement mentionOption = wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath(
+                "//div[@data-testid='popup-wrapper']//div[@role='option'][contains(@aria-label,'"
+                        + mentionFragment + "')]")));
+        mentionOption.click();
+
+        editor.sendKeys(" " + commentText);
+        saveComment();
+    }
+
+    private WebElement openCommentEditor() {
+        WebElement skeletonButton = wait.until(ExpectedConditions.elementToBeClickable(newCommentSkeletonButtonLocator));
+        skeletonButton.click();
+
+        WebElement editor = wait.until(ExpectedConditions.visibilityOfElementLocated(commentEditorLocator));
+        editor.click();
+        return editor;
+    }
+
+    private void saveComment() {
+        WebElement saveButton = wait.until(ExpectedConditions.elementToBeClickable(commentSaveButtonLocator));
+        saveButton.click();
+    }
+
+    /**
+     * Check whether a comment containing the given text is present on the card.
+     *
+     * @param text Text (or fragment) to look for among posted comments
+     * @return true if a matching comment is found
+     */
+    public boolean isCommentPresent(String text) {
+        return isActivityEntryPresent(text);
+    }
+
+    /**
+     * Toggle the Watch/Subscribe state of the currently open card via the "..." actions menu.
+     */
+    public void toggleWatch() {
+        WebElement actionsButton = wait.until(ExpectedConditions.elementToBeClickable(actionsButtonLocator));
+        actionsButton.click();
+
+        WebElement subscribeButton = wait.until(ExpectedConditions.elementToBeClickable(subscribedButtonLocator));
+        subscribeButton.click();
+
+        new Actions(driver).sendKeys(Keys.ESCAPE).perform();
+    }
+
+    /**
+     * Ensure the currently open card is watched, toggling it on only if it isn't
+     * already - toggleWatch() flips state regardless of current state, so calling it
+     * blindly can turn watching OFF if a prior run left the card already watched.
+     */
+    public void ensureWatched() {
+        if (!isWatched()) {
+            toggleWatch();
+        }
+    }
+
+    /**
+     * Check whether the currently open card is being watched.
+     *
+     * @return true if the Watch/Subscribe control reflects a watching state
+     */
+    public boolean isWatched() {
+        try {
+            WebElement actionsButton = wait.until(ExpectedConditions.elementToBeClickable(actionsButtonLocator));
+            actionsButton.click();
+
+            WebElement subscribeButton =
+                    wait.until(ExpectedConditions.visibilityOfElementLocated(subscribedButtonLocator));
+            boolean watching = "true".equals(subscribeButton.getAttribute("aria-pressed"));
+
+            new Actions(driver).sendKeys(Keys.ESCAPE).perform();
+            return watching;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check whether the card's activity feed (comments and system actions) contains an
+     * entry matching the given text.
+     *
+     * @param textFragment Text (or fragment) to look for among activity entries
+     * @return true if a matching activity entry is found
+     */
+    public boolean isActivityEntryPresent(String textFragment) {
+        try {
+            return wait.until(d -> d.findElements(activityFeedItemLocator).stream()
+                    .anyMatch(entry -> entry.getText().contains(textFragment)));
+        } catch (Exception e) {
             return false;
         }
     }
@@ -537,6 +742,7 @@ public class CardPage {
     }
 
     public void closeCard() {
+
         System.out.println("STEP: Closing card...");
 
         WebElement closeButton = wait.until(
@@ -547,19 +753,10 @@ public class CardPage {
 
         // Wait for the dialog to actually finish closing - otherwise the overlay can
         // still intercept the very next click (e.g. reopening the same card immediately).
-        wait.until(
-                ExpectedConditions.invisibilityOfElementLocated(closeCardButton)
-        );
+        wait.until(ExpectedConditions.invisibilityOfElementLocated(closeCardButton));
 
         System.out.println("STEP: Card closed successfully.");
     }
-
-    /**
-     * Returns true if the given label color is applied and visible on the card tile.
-     *
-     * @param color The color name to check.
-     * @return true if the label is displayed on the card, false otherwise.
-     */
     public boolean isLabelApplied(String color) {
 
         By appliedLabel = By.cssSelector(
@@ -572,9 +769,12 @@ public class CardPage {
             );
 
             boolean displayed = label.isDisplayed();
-            System.out.println("STEP: Label '" + color + "' displayed on card: " + displayed);
-            return displayed;
 
+            System.out.println(
+                    "STEP: Label '" + color + "' displayed on card: " + displayed
+            );
+
+            return displayed;
         } catch (Exception e) {
             System.out.println("STEP: Label '" + color + "' not applied.");
             return false;
@@ -582,11 +782,9 @@ public class CardPage {
     }
 
     /**
-     * Applies the label only if it is not already applied.
-     * Selecting an already-applied label toggles it OFF in Trello, so a plain
-     * selectLabel() is not safe to call twice on a reused fixture card.
-     *
-     * @param color The color name of the label to apply.
+     * Applies the label only if it is not already applied. Selecting an already-applied
+     * label toggles it OFF in Trello, so a plain selectLabel() is not safe to call twice
+     * (e.g. on a reused fixture card across test reruns).
      */
     public void ensureLabelApplied(String color) {
         if (isLabelApplied(color)) {
@@ -596,13 +794,8 @@ public class CardPage {
         clickLabels();
         selectLabel(color);
     }
-
-    /**
-     * Clicks the already-applied label badge on the card tile via JS click.
-     *
-     * @param color The color name of the applied label to click.
-     */
     public void clickAppliedLabel(String color) {
+
         System.out.println("STEP: Clicking applied label: " + color);
 
         By appliedLabel = By.cssSelector(
@@ -627,8 +820,12 @@ public class CardPage {
      * a due-date badge button — picks whichever is actually present.
      */
     public void clickDates() {
+
         System.out.println("STEP: Clicking Dates...");
 
+        // Once a due date is already set, the "Dates" quick-action button is replaced by
+        // a due-date badge button (e.g. "Sep 15, 8:21 PM") - clicking it reopens the same
+        // date editor. Pick whichever is actually present.
         By datesQuickButton = By.xpath("//button[normalize-space()='Dates']");
         By dueDateBadge     = By.cssSelector(
                 "button[data-testid='due-date-badge-with-date-range-picker']"
@@ -661,6 +858,7 @@ public class CardPage {
      * @param dueDate The due date string to enter (e.g. "09/15/2026").
      */
     public void enterDueDate(String dueDate) {
+
         System.out.println("STEP: Entering due date: " + dueDate);
 
         WebElement dateField = wait.until(
@@ -757,6 +955,7 @@ public class CardPage {
      * Clicks the Add button to create the checklist.
      */
     public void addChecklist() {
+
         System.out.println("STEP: Clicking Add checklist...");
 
         WebElement addButton = wait.until(
@@ -774,6 +973,7 @@ public class CardPage {
      * @param itemName The name of the checklist item to add.
      */
     public void enterChecklistItem(String itemName) {
+
         System.out.println("STEP: Entering checklist item: " + itemName);
 
         WebElement itemField = wait.until(
@@ -791,6 +991,7 @@ public class CardPage {
      * Clicks the Add button to submit the checklist item.
      */
     public void addChecklistItem() {
+
         System.out.println("STEP: Clicking Add checklist item...");
 
         WebElement addButton = wait.until(
@@ -811,7 +1012,14 @@ public class CardPage {
     public WebElement getChecklistItemCheckboxElement(String itemName) {
         return wait.until(ExpectedConditions.visibilityOfElementLocated(checklistItemCheckboxLabel(itemName)));
     }
-
+    /**
+     * The checklist item's name is only exposed via the aria-label of its checkbox input
+     * in this Trello UI - there is no separate visible text element carrying the name, so
+     * this is the one reliable locator for a specific item.
+     */
+    private By checklistItemCheckboxInput(String itemName) {
+        return By.xpath("//input[@type='checkbox' and @aria-label='" + itemName + "']");
+    }
 
     /**
      * Returns true if the checklist item with the given name is visible.
@@ -819,6 +1027,8 @@ public class CardPage {
      * @param expectedItem The checklist item name to look for.
      * @return true if the item is displayed, false otherwise.
      */
+
+
     public boolean isChecklistItemDisplayed(String expectedItem) {
 
         By checkboxInput = checklistItemCheckboxInput(expectedItem);
@@ -1127,6 +1337,7 @@ public class CardPage {
             return false;
         }
     }
+
     public void ensureCoverApplied() {
         if (isCoverApplied()) {
             System.out.println("STEP: Cover already applied, skipping.");
@@ -1135,6 +1346,340 @@ public class CardPage {
         clickCover();
         selectCoverColor();
     }
+
+
+
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // DRAG AND DROP
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+
+    /**
+     * Drags a card by name from a source list to a target list.
+     *
+     * @param cardName   visible text of the card to drag
+     * @param sourceList name of the list the card currently lives in
+     * @param targetList name of the list to drop the card into
+     */
+    /**
+     * Drags a card by name from a source list to a target list.
+     * Optimized with CSS selectors + Java filtering (much faster than XPath text matching).
+     *
+     * @param cardName   visible text of the card to drag
+     * @param sourceList name of the list the card currently lives in
+     * @param targetList name of the list to drop the card into
+     */
+    public void dragCardToList(String cardName, String sourceList, String targetList) {
+        // Find source card <li> element (has draggable="true")
+        WebElement sourceCard = findCardInList(cardName, sourceList);
+        if (sourceCard == null) {
+            throw new RuntimeException("Card '" + cardName + "' not found in list '" + sourceList + "'");
+        }
+
+        // Find target list's <ol> card container
+        WebElement targetListEl = findListCardContainer(targetList);
+        if (targetListEl == null) {
+            throw new RuntimeException("List '" + targetList + "' not found");
+        }
+
+        System.out.println("DEBUG: Dragging card '" + cardName + "' from '" + sourceList + "' to '" + targetList + "'");
+
+        // Chrome WebDriver properly synthesizes HTML5 drag events
+        new Actions(driver)
+            .dragAndDrop(sourceCard, targetListEl)
+            .perform();
+
+        // Wait for Trello's optimistic UI to settle
+        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
+    /**
+     * Find a card element by name within a specific list.
+     * Uses fast CSS selectors + Java text filtering instead of slow XPath.
+     */
+    private WebElement findCardInList(String cardName, String listName) {
+        // Find the list wrapper by filtering all lists
+        WebElement listWrapper = findListWrapper(listName);
+        if (listWrapper == null) {
+            System.out.println("DEBUG: List wrapper '" + listName + "' not found");
+            return null;
+        }
+
+        // Wait a moment for cards to load (Trello lazy-loads card tiles)
+        try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        // Get the list-cards container first
+        WebElement cardsContainer;
+        try {
+            cardsContainer = listWrapper.findElement(By.cssSelector("[data-testid='list-cards']"));
+        } catch (Exception e) {
+            System.out.println("DEBUG: list-cards container not found in list wrapper");
+            return null;
+        }
+
+        // Get all card elements from the container
+        List<WebElement> cards = cardsContainer.findElements(By.cssSelector("[data-testid='list-card']"));
+        System.out.println("DEBUG: Found " + cards.size() + " cards in list '" + listName + "'");
+
+        // Filter by card name text (use trim and equals for exact match)
+        for (WebElement card : cards) {
+            try {
+                WebElement cardNameEl = card.findElement(By.cssSelector("[data-testid='card-name']"));
+                String actualCardName = cardNameEl.getText().trim();
+                System.out.println("DEBUG: Checking card '" + actualCardName + "' against '" + cardName + "'");
+
+                if (actualCardName.equals(cardName)) {
+                    System.out.println("DEBUG: Found matching card!");
+                    return card;
+                }
+            } catch (Exception e) {
+                // Card doesn't have card-name element, skip
+                System.out.println("DEBUG: Skipping card without card-name element");
+            }
+        }
+
+        System.out.println("DEBUG: Card '" + cardName + "' not found in list '" + listName + "'");
+        return null;
+    }
+
+    /**
+     * Find a list wrapper by name.
+     * Uses CSS selectors + Java filtering for speed.
+     */
+    private WebElement findListWrapper(String listName) {
+        List<WebElement> lists = driver.findElements(By.cssSelector("[data-testid='list-wrapper']"));
+        System.out.println("DEBUG: Found " + lists.size() + " list wrappers on board");
+
+        for (WebElement list : lists) {
+            try {
+                WebElement listNameEl = list.findElement(By.cssSelector("[data-testid='list-name']"));
+                String actualListName = listNameEl.getText().trim();
+                System.out.println("DEBUG: Checking list '" + actualListName + "' against '" + listName + "'");
+
+                if (actualListName.equals(listName)) {
+                    System.out.println("DEBUG: Found matching list!");
+                    return list;
+                }
+            } catch (Exception e) {
+                // List doesn't have list-name element, skip
+                System.out.println("DEBUG: Skipping list without list-name element");
+            }
+        }
+
+        System.out.println("DEBUG: List '" + listName + "' not found");
+        return null;
+    }
+
+    /**
+     * Find the card container (ol element) of a list by name.
+     */
+    private WebElement findListCardContainer(String listName) {
+        WebElement listWrapper = findListWrapper(listName);
+        if (listWrapper == null) return null;
+
+        try {
+            return listWrapper.findElement(By.cssSelector("[data-testid='list-cards']"));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Fallback drag implementation using JavaScript when Selenium Actions fail.
+     * Simulates full HTML5 drag-and-drop with proper DataTransfer object and mouse events.
+     */
+    private void dragCardViaJavaScript(WebElement source, WebElement target) {
+        String dragDropScript =
+            "function simulateDragDrop(source, target) {" +
+            "  var dataTransfer = {" +
+            "    data: {}," +
+            "    dropEffect: 'move'," +
+            "    effectAllowed: 'all'," +
+            "    files: []," +
+            "    items: []," +
+            "    types: []," +
+            "    setData: function(format, data) {" +
+            "      this.data[format] = data;" +
+            "      if (this.types.indexOf(format) === -1) this.types.push(format);" +
+            "    }," +
+            "    getData: function(format) { return this.data[format]; }," +
+            "    clearData: function(format) { if (format) delete this.data[format]; else this.data = {}; }," +
+            "    setDragImage: function() {}" +
+            "  };" +
+            "" +
+            "  var rect = source.getBoundingClientRect();" +
+            "  var clientX = rect.left + rect.width / 2;" +
+            "  var clientY = rect.top + rect.height / 2;" +
+            "" +
+            "  // Dragstart" +
+            "  var dragstart = document.createEvent('DragEvent');" +
+            "  dragstart.initMouseEvent('dragstart', true, true, window, 0, 0, 0, clientX, clientY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(dragstart, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  source.dispatchEvent(dragstart);" +
+            "" +
+            "  var targetRect = target.getBoundingClientRect();" +
+            "  var targetX = targetRect.left + targetRect.width / 2;" +
+            "  var targetY = targetRect.top + targetRect.height / 2;" +
+            "" +
+            "  // Dragover on target" +
+            "  var dragover = document.createEvent('DragEvent');" +
+            "  dragover.initMouseEvent('dragover', true, true, window, 0, 0, 0, targetX, targetY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(dragover, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  target.dispatchEvent(dragover);" +
+            "" +
+            "  // Drop on target" +
+            "  var drop = document.createEvent('DragEvent');" +
+            "  drop.initMouseEvent('drop', true, true, window, 0, 0, 0, targetX, targetY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(drop, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  target.dispatchEvent(drop);" +
+            "" +
+            "  // Dragend on source" +
+            "  var dragend = document.createEvent('DragEvent');" +
+            "  dragend.initMouseEvent('dragend', true, true, window, 0, 0, 0, targetX, targetY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(dragend, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  source.dispatchEvent(dragend);" +
+            "}" +
+            "simulateDragDrop(arguments[0], arguments[1]);";
+
+        ((JavascriptExecutor) driver).executeScript(dragDropScript, source, target);
+
+        // Wait for Trello's optimistic UI to settle
+        try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
+    /**
+     * Drags a card within the same list to reorder it.
+     *
+     * @param cardName    name of the card to drag
+     * @param targetCard  name of the card to drop onto (new position)
+     * @param listName    list both cards belong to
+     */
+    /**
+     * Drags a card within the same list to reorder it.
+     * Optimized with CSS selectors + Java filtering.
+     *
+     * @param cardName    name of the card to drag
+     * @param targetCard  name of the card to drop onto (new position)
+     * @param listName    list both cards belong to
+     */
+    public void dragCardInList(String cardName, String targetCard, String listName) {
+        WebElement source = findCardInList(cardName, listName);
+        WebElement target = findCardInList(targetCard, listName);
+
+        if (source == null) {
+            throw new RuntimeException("Source card '" + cardName + "' not found in list '" + listName + "'");
+        }
+        if (target == null) {
+            throw new RuntimeException("Target card '" + targetCard + "' not found in list '" + listName + "'");
+        }
+
+        System.out.println("DEBUG: Reordering card '" + cardName + "' to position of '" + targetCard + "' in list '" + listName + "'");
+
+        // Chrome WebDriver properly synthesizes HTML5 drag events
+        new Actions(driver)
+            .dragAndDrop(source, target)
+            .perform();
+
+        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+
+    /**
+     * Returns the index of a card within its list, or -1 if not found.
+     * Waits for the list to be visible before scanning so this is safe to
+     * call immediately after navigating to the board.
+     *
+     * @param cardName name of the card to locate
+     * @param listName list to search in
+     */
+    public int getCardIndexInList(String cardName, String listName) {
+        By listBy = By.xpath(
+                "//li[@data-testid='list-wrapper']" +
+                "[.//h2[@data-testid='list-name']//span[text()='" + listName + "']]" +
+                "//ol[@data-testid='list-cards']");
+
+        // Wait for the list container to be visible before reading card order
+        try {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(listBy));
+        } catch (Exception e) {
+            return -1; // list does not exist on this board
+        }
+
+        By allCardsBy = By.xpath(
+                "//li[@data-testid='list-wrapper']" +
+                "[.//h2[@data-testid='list-name']//span[text()='" + listName + "']]" +
+                "//ol[@data-testid='list-cards']//li[@data-testid='list-card']");
+
+        List<WebElement> cards = driver.findElements(allCardsBy);
+        for (int i = 0; i < cards.size(); i++) {
+            String text = cards.get(i)
+                    .findElement(By.xpath(".//a[@data-testid='card-name']")).getText();
+            if (text.equals(cardName)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Finds which list a card currently lives in by searching every list on the board.
+     * Returns the list name, or null if the card is not found on the board.
+     *
+     * @param cardName name of the card to locate
+     */
+    public String findListContainingCard(String cardName) {
+        By allListNames = By.xpath(
+                "//li[@data-testid='list-wrapper']//h2[@data-testid='list-name']//span");
+        try {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(allListNames));
+        } catch (Exception e) {
+            return null;
+        }
+        List<WebElement> lists = driver.findElements(allListNames);
+        for (WebElement list : lists) {
+            String listName = list.getText();
+            if (getCardIndexInList(cardName, listName) >= 0) {
+                return listName;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if a card with the given name is visible inside the specified list.
+     *
+     * @param cardName visible text of the card
+     * @param listName name of the list to look in
+     */
+    public boolean isCardInList(String cardName, String listName) {
+        By cardBy = By.xpath(
+                "//li[@data-testid='list-wrapper']" +
+                "[.//h2[@data-testid='list-name']//span[text()='" + listName + "']]" +
+                "//li[@data-testid='list-card'][.//a[@data-testid='card-name'][text()='" + cardName + "']]"
+        );
+        try {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(cardBy)).isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns the number of card elements matching the given card name inside the specified list.
+     * A result of 0 means the card is no longer present in that list.
+     *
+     * @param cardName visible text of the card
+     * @param listName name of the list to check
+     */
+    public int countCardsInList(String cardName, String listName) {
+        By cardBy = By.xpath(
+                "//li[@data-testid='list-wrapper']" +
+                "[.//h2[@data-testid='list-name']//span[text()='" + listName + "']]" +
+                "//li[@data-testid='list-card'][.//a[@data-testid='card-name'][text()='" + cardName + "']]"
+        );
+        return driver.findElements(cardBy).size();
+    }
+
+
+
 
     /**
      * Get every cover color swatch in the open cover popover, for layout/rendering
@@ -1152,5 +1697,65 @@ public class CardPage {
      */
     public void closeCoverPopover() {
         new org.openqa.selenium.interactions.Actions(driver).sendKeys(Keys.ESCAPE).perform();
+    }
+
+    /**
+     * Returns the close-dialog button element, for layout/rendering assertions.
+     */
+    public WebElement getCloseCardButtonElement() {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(closeCardButton));
+    }
+
+    /**
+     * Returns the card description content area element, for layout/rendering assertions.
+     * Falls back to the "Add a more detailed description" button if no description has been
+     * saved yet (both represent the description zone on the card back).
+     */
+    public WebElement getDescriptionAreaElement() {
+        By savedArea = By.cssSelector("[data-testid='description-content-area']");
+        try {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(savedArea));
+        } catch (Exception e) {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(descriptionButton));
+        }
+    }
+
+    /**
+     * Returns the checkbox label element for the given checklist item,
+     * for layout/rendering assertions.
+     *
+     * @param itemName visible text / aria-label of the checklist item
+     */
+    public WebElement getChecklistItemCheckboxElement(String itemName) {
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(
+                checklistItemCheckboxInput(itemName)));
+    }
+
+    /**
+     * Drags a card to an invalid drop target (the page header) to verify it
+     * snaps back to its original position in the list.
+     *
+     * @param cardName name of the card to drag
+     * @param listName list the card currently belongs to
+     */
+    public void dragCardToInvalidTarget(String cardName, String listName) {
+        By sourceCardBy = By.xpath(
+                "//li[@data-testid='list-wrapper']" +
+                "[.//h2[@data-testid='list-name']//span[text()='" + listName + "']]" +
+                "//ol[@data-testid='list-cards']" +
+                "//li[@data-testid='list-card'][.//a[@data-testid='card-name'][text()='" + cardName + "']]");
+
+        WebElement sourceCard   = wait.until(ExpectedConditions.visibilityOfElementLocated(sourceCardBy));
+        WebElement invalidTarget = wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.xpath("//nav[@data-testid='authenticated-header']")));
+
+        Duration pause = Duration.ofMillis(1000);
+        new Actions(driver)
+                .moveToElement(sourceCard).pause(pause)
+                .clickAndHold(sourceCard).pause(pause)
+                .moveByOffset(5, 5).pause(pause)
+                .moveToElement(invalidTarget).pause(pause)
+                .release().pause(pause)
+                .build().perform();
     }
 }

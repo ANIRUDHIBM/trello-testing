@@ -11,192 +11,376 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 import java.util.List;
 
+/**
+ * Page Object Model for an open Trello board.
+ * Covers list/card creation and board-level collaboration actions: sharing,
+ * inviting members, and managing member roles.
+ *
+ * Locators were written against Trello's known data-testid conventions without
+ * live DOM access and may need small adjustments on the first real run.
+ */
 public class BoardPage {
 
-    private WebDriver driver;
-    private WebDriverWait wait;
+    private final WebDriver driver;
+    private final WebDriverWait wait;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // CONSTRUCTOR
-    // ─────────────────────────────────────────────────────────────────────────
+    private By addListButtonLocator = By.cssSelector("[data-testid='list-name-textarea'][placeholder]");
+    private By listComposerOpenButtonLocator = By.cssSelector("[data-testid='list-composer-button']");
+    private By listComposerAddButtonLocator = By.cssSelector("button[data-testid='list-composer-add-list-button']");
+    private By listHeaderLocator = By.cssSelector("[data-testid='list-name']");
+    private By listLocator = By.cssSelector("[data-testid='list']");
+    private By addCardButtonLocator = By.cssSelector("[data-testid='list-add-card-button']");
+    private By addCardTextareaLocator = By.cssSelector("[data-testid='list-card-composer-textarea']");
+    private By addCardConfirmButtonLocator =
+            By.cssSelector("button[data-testid='list-card-composer-add-card-button']");
+    private By cardTileLocator = By.cssSelector("[data-testid='trello-card']");
+
+    private By shareButtonLocator = By.cssSelector("button[data-testid='board-share-button']");
+    private By shareSearchInputLocator = By.cssSelector("input[data-testid='add-members-input']");
+    private By typeaheadSuggestionLocator = By.cssSelector("[data-testid='team-invitee-option']");
+    private By sendInviteButtonLocator = By.cssSelector("button[data-testid='team-invite-submit-button']");
+    private By memberItemLocator = By.cssSelector("[data-testid='member-item']");
+    private By memberRoleSelectLocator = By.cssSelector("[data-testid='board-permission-selector-dropdown--trigger']");
+    private By closeDialogButtonLocator = By.cssSelector("button[data-testid='board-invite-modal-close-button']");
+    // Resilient Locators
+    private final By headerCreateMenuBtn = By.cssSelector("button[data-testid='header-create-menu-button']");
+    private final By headerCreateBoardBtn = By.cssSelector("button[data-testid='create-board-button']");
+    private final By boardTitleInput = By.cssSelector("[data-testid='create-board-title-input'], [placeholder='Add board title'], [placeholder*='board title'], [placeholder*='title'], [placeholder*='Title']");
+    private final By finalCreateBtn = By.cssSelector("button[data-testid='create-board-submit-button']");
+
+    private final By boardTitleDisplay = By.cssSelector("h1[data-testid='board-name-display']");
+    private final By boardTitleInputField = By.cssSelector("input[data-testid='board-name-input']");
+    private final By boardStarBtn = By.cssSelector("button[aria-label='Star or unstar board']");
+    
+    // Board Menu & Operations
+    private final By showMenuBtn = By.cssSelector("button[aria-label='Show menu'], button[data-testid='overflow-menu-button'], button[class*='board-header-btn-menu']");
+    private final By changeBackgroundBtn = By.xpath("//*[contains(@data-testid, 'change-background') or contains(text(), 'Change background') or contains(@class, 'change-background')]");
+    private final By backgroundColorsOption = By.xpath("//*[contains(@data-testid, 'background-colors') or contains(text(), 'Colors') or contains(@class, 'colors')]");
+    private final By colorTile = By.cssSelector("[class*='board-menu'] button[style*='background'], [class*='popover'] button[style*='background'], button[style*='background'], [class*='background-box']");
+ 
+    private final By closeBoardMenuLink = By.xpath("//*[contains(@data-testid, 'close-board') or contains(text(), 'Close board') or contains(@class, 'js-close-board')]");
+    private final By closeConfirmBtn = By.xpath("//button[normalize-space(.)='Close'] | //input[@value='Close'] | //*[contains(@data-testid, 'confirm-button')] | //*[contains(@class, 'js-confirm')]");
+    private final By closedBoardMessage = By.xpath("//*[contains(text(), 'This board is closed') or contains(text(), 'board is closed') or @data-testid='close-board-big-message' or @data-testid='close-board-message']");
+    private final By reopenBoardBtn = By.xpath("//button[@data-testid='workspace-chooser-trigger-button' and contains(., 'Reopen')] | //button[@data-testid='workspace-chooser-reopen-button'] | //button[normalize-space(.)='Reopen board']");
+    private final By permanentDeleteLink = By.xpath("//*[contains(@data-testid, 'delete-board') or contains(text(), 'Permanently delete board') or contains(@class, 'js-delete-board')]");
+    private final By deleteConfirmBtn = By.xpath("//button[normalize-space(.)='Delete'] | //input[@value='Delete'] | //*[contains(@data-testid, 'confirm-button')]");
+ 
+    // Visibility
+    private final By boardVisibilityBtn = By.cssSelector("button[data-testid*='visibility'], button[aria-label*='Visibility'], button[id*='permission'], button[class*='vis']");
+    private final By privateVisibilityOption = By.xpath("//*[contains(@data-testid, 'private') or contains(text(), 'Private') or contains(@class, 'private')]");
 
     public BoardPage(WebDriver driver) {
         this.driver = driver;
-        this.wait   = new WebDriverWait(driver, Duration.ofSeconds(20));
-    }
-
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LOCATORS — Board Creation
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private final By headerCreateMenuBtn =
-            By.cssSelector("button[data-testid='header-create-menu-button']");
-
-    private final By headerCreateBoardBtn =
-            By.cssSelector("button[data-testid='create-board-button']");
-
-    private final By boardTitleInput =
-            By.cssSelector(
-                    "[data-testid='create-board-title-input']," +
-                            "[placeholder='Add board title']," +
-                            "[placeholder*='board title']," +
-                            "[placeholder*='title']," +
-                            "[placeholder*='Title']"
-            );
-
-    private final By finalCreateBtn =
-            By.cssSelector("button[data-testid='create-board-submit-button']");
-
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LOCATORS — Board Header / Title
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private final By boardTitleDisplay =
-            By.cssSelector("h1[data-testid='board-name-display']");
-
-    private final By boardTitleInputField =
-            By.cssSelector("input[data-testid='board-name-input']");
-
-    private final By boardStarBtn =
-            By.cssSelector("button[aria-label='Star or unstar board']");
-
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LOCATORS — Board Menu (Show Menu / Background / Visibility)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private final By showMenuBtn =
-            By.cssSelector(
-                    "button[aria-label='Show menu']," +
-                            "button[data-testid='overflow-menu-button']," +
-                            "button[class*='board-header-btn-menu']"
-            );
-
-    private final By changeBackgroundBtn =
-            By.xpath(
-                    "//*[contains(@data-testid,'change-background')" +
-                            " or contains(text(),'Change background')" +
-                            " or contains(@class,'change-background')]"
-            );
-
-    private final By backgroundColorsOption =
-            By.xpath(
-                    "//*[contains(@data-testid,'background-colors')" +
-                            " or contains(text(),'Colors')" +
-                            " or contains(@class,'colors')]"
-            );
-
-    private final By colorTile =
-            By.cssSelector(
-                    "[class*='board-menu'] button[style*='background']," +
-                            "[class*='popover'] button[style*='background']," +
-                            "button[style*='background']," +
-                            "[class*='background-box']"
-            );
-
-    private final By boardVisibilityBtn =
-            By.cssSelector(
-                    "button[data-testid*='visibility']," +
-                            "button[aria-label*='Visibility']," +
-                            "button[id*='permission']," +
-                            "button[class*='vis']"
-            );
-
-    private final By privateVisibilityOption =
-            By.xpath(
-                    "//*[contains(@data-testid,'private')" +
-                            " or contains(text(),'Private')" +
-                            " or contains(@class,'private')]"
-            );
-
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LOCATORS — Close / Reopen / Permanently Delete Board
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private final By closeBoardMenuLink =
-            By.xpath(
-                    "//*[contains(@data-testid,'close-board')" +
-                            " or contains(text(),'Close board')" +
-                            " or contains(@class,'js-close-board')]"
-            );
-
-    private final By closeConfirmBtn =
-            By.xpath(
-                    "//button[normalize-space(.)='Close']" +
-                            " | //input[@value='Close']" +
-                            " | //*[contains(@data-testid,'confirm-button')]" +
-                            " | //*[contains(@class,'js-confirm')]"
-            );
-
-    private final By closedBoardMessage =
-            By.xpath(
-                    "//*[contains(text(),'This board is closed')" +
-                            " or contains(text(),'board is closed')" +
-                            " or @data-testid='close-board-big-message'" +
-                            " or @data-testid='close-board-message']"
-            );
-
-    private final By reopenBoardBtn =
-            By.xpath(
-                    "//button[@data-testid='workspace-chooser-trigger-button'" +
-                            " and contains(.,'Reopen')]" +
-                            " | //button[@data-testid='workspace-chooser-reopen-button']" +
-                            " | //button[normalize-space(.)='Reopen board']"
-            );
-
-    private final By permanentDeleteLink =
-            By.xpath(
-                    "//*[contains(@data-testid,'delete-board')" +
-                            " or contains(text(),'Permanently delete board')" +
-                            " or contains(@class,'js-delete-board')]"
-            );
-
-    /** Confirm button for PERMANENTLY DELETING a board. */
-    private final By boardDeleteConfirmBtn =
-            By.xpath(
-                    "//button[normalize-space(.)='Delete']" +
-                            " | //input[@value='Delete']" +
-                            " | //*[contains(@data-testid,'confirm-button')]"
-            );
-
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LOCATORS — Board Menu (Archive flow)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private final By boardMenuButton = By.cssSelector("button[aria-label='Show menu']");
-    private final By closePanelButton  = By.cssSelector("button[aria-label='Close popover']");
-    private final By archivedItemPanel = By.cssSelector("section.BlZsLdklhFlfey");
-    private final By archivedItemsOption = By.xpath("//*[normalize-space()='Archived items']");
-    private final By archivedItemsPanel = By.cssSelector("[data-testid='board-menu-container']");
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // LOCATORS — Archived Items Panel: Delete Flow
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Locates the archived item row/container that holds the given card title.
-     * NOTE: Inspect the archived items panel in DevTools and update this
-     *       XPath if the structure is different in your Trello version.
-     */
-    private By archivedCardItemLocator(String cardTitle) {
-        return By.xpath(
-                "//div[@data-testid='archived-card']" +
-                        "[.//a[@data-testid='card-name' and normalize-space()='" + cardTitle + "']]"
-        );
+        this.wait = new WebDriverWait(driver, Duration.ofSeconds(15));
     }
 
     /**
-     * Locates the Delete button INSIDE a specific archived card row.
-     * Falls back to a text-based match if data-testid is not present.
+     * Add a new list to the board.
+     *
+     * @param listName Name for the new list
      */
-    private By deleteButtonInsideArchivedCard(String cardTitle) {
-            return By.xpath(
-                    "//button[@aria-label='Delete " + cardTitle + "']"
-            );
+    public void addList(String listName) {
+        // Count existing lists before adding
+        int listCountBefore = driver.findElements(listLocator).size();
+
+        WebElement openComposer = wait.until(ExpectedConditions.elementToBeClickable(listComposerOpenButtonLocator));
+        openComposer.click();
+
+        WebElement input = wait.until(ExpectedConditions.visibilityOfElementLocated(addListButtonLocator));
+        input.sendKeys(listName);
+
+        WebElement addButton = wait.until(ExpectedConditions.elementToBeClickable(listComposerAddButtonLocator));
+        addButton.click();
+
+        // Wait for list count to increase (new list added)
+        wait.until(d -> d.findElements(listLocator).size() > listCountBefore);
+
+        // Give Trello a moment to finish rendering the new list's title
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Add a card with the given title to the named list.
+     *
+     * @param listName  Name of the list to add the card to
+     * @param cardTitle Title for the new card
+     */
+    public void addCard(String listName, String cardTitle) {
+        WebElement targetList = findListByName(listName);
+        WebElement addCardButton = targetList.findElement(addCardButtonLocator);
+        addCardButton.click();
+
+        WebElement textarea = wait.until(ExpectedConditions.visibilityOfElementLocated(addCardTextareaLocator));
+        textarea.sendKeys(cardTitle);
+
+        WebElement confirmButton = wait.until(ExpectedConditions.elementToBeClickable(addCardConfirmButtonLocator));
+        confirmButton.click();
+
+        wait.until(d -> d.findElements(cardTileLocator).stream()
+                .anyMatch(card -> cardTileMatchesTitle(card, cardTitle)));
+
+        new org.openqa.selenium.interactions.Actions(driver).sendKeys(org.openqa.selenium.Keys.ESCAPE).perform();
+    }
+
+    /**
+     * Open the card detail modal for the card with the given title.
+     *
+     * @param cardTitle Title of the card to open
+     */
+    public void openCard(String cardTitle) {
+        WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(5));
+        boolean everFound = false;
+
+        for (int attempt = 0; attempt < 15; attempt++) {
+            // A second/invited user's board view can lag behind a card just created by
+            // another user - refresh periodically to force a re-sync rather than relying
+            // solely on live updates reaching this session.
+            if (attempt > 0 && attempt % 4 == 0) {
+                driver.navigate().refresh();
+            }
+            List<WebElement> cards = wait.until(
+                    ExpectedConditions.presenceOfAllElementsLocatedBy(cardTileLocator));
+            WebElement match = null;
+            for (WebElement card : cards) {
+                if (cardTileMatchesTitle(card, cardTitle)) {
+                    match = card;
+                    break;
+                }
+            }
+            if (match == null) {
+                try {
+                    Thread.sleep(1500);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                continue;
+            }
+            everFound = true;
+
+            WebElement nameLink = match.findElement(By.cssSelector("[data-testid='card-name']"));
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", nameLink);
+
+            try {
+                shortWait.until(ExpectedConditions.visibilityOfElementLocated(
+                        By.cssSelector("[data-testid='card-back-panel']")));
+                return;
+            } catch (org.openqa.selenium.TimeoutException e) {
+                // Card panel didn't open in time - the click may have raced the list's
+                // optimistic-UI update. Re-fetch the card element and retry.
+            }
+        }
+        if (!everFound) {
+            throw new IllegalStateException("No card found with title: " + cardTitle);
+        }
+        wait.until(ExpectedConditions.visibilityOfElementLocated(
+                By.cssSelector("[data-testid='card-back-panel']")));
+    }
+
+    /**
+     * Ensure a card with the given title exists on the named list, creating the list
+     * and/or the card first if either is missing. Used by tests so they don't depend
+     * on fixture cards having been created manually ahead of time.
+     *
+     * @param listName  Name of the list the card should be on
+     * @param cardTitle Title of the card to ensure exists
+     */
+    public void ensureCardExists(String listName, String cardTitle) {
+        // Wait a moment for lists to appear if board just loaded, but don't fail if none exist yet
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        List<WebElement> lists = driver.findElements(listLocator);
+        boolean listFound = false;
+        for (WebElement list : lists) {
+            if (list.findElement(listHeaderLocator).getText().trim().equals(listName)) {
+                listFound = true;
+                break;
+            }
+        }
+        if (!listFound) {
+            addList(listName);
+        }
+
+        // Give the list's card tiles a moment to finish rendering after board/list load
+        // before deciding the card doesn't exist yet - otherwise this races and creates
+        // duplicate cards on repeated runs.
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        for (WebElement card : driver.findElements(cardTileLocator)) {
+            if (cardTileMatchesTitle(card, cardTitle)) {
+                return;
+            }
+        }
+        addCard(listName, cardTitle);
+    }
+
+    /**
+     * Check whether a card tile's name matches the given title. Compares against the
+     * nested card-name element rather than the tile's full text, since Trello appends
+     * badges (comment count, member count, due date, etc.) as extra text within the
+     * same tile.
+     */
+    private boolean cardTileMatchesTitle(WebElement card, String cardTitle) {
+        try {
+            return card.findElement(By.cssSelector("[data-testid='card-name']"))
+                    .getText().trim().equals(cardTitle);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private WebElement findListByName(String listName) {
+        List<WebElement> lists = wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(listLocator));
+        for (WebElement list : lists) {
+            if (list.findElement(listHeaderLocator).getText().trim().equals(listName)) {
+                return list;
+            }
+        }
+        throw new IllegalStateException("No list found with name: " + listName);
+    }
+
+    /**
+     * Open the board's Share dialog.
+     */
+    public void openShareDialog() {
+        WebElement shareButton = wait.until(ExpectedConditions.elementToBeClickable(shareButtonLocator));
+        shareButton.click();
+        wait.until(ExpectedConditions.visibilityOfElementLocated(shareSearchInputLocator));
+    }
+
+    /**
+     * Close whichever dialog is currently open (e.g. the Share dialog).
+     */
+    public void closeDialog() {
+        WebElement closeButton = wait.until(ExpectedConditions.elementToBeClickable(closeDialogButtonLocator));
+        closeButton.click();
+    }
+
+    /**
+     * Invite a member to the board by email. Assumes the Share dialog is already open.
+     * If the invitee is already a Workspace member, Trello shows a typeahead suggestion
+     * that adds them instantly; otherwise falls back to sending an external invite.
+     *
+     * @param email Email address of the member to invite
+     */
+    public void inviteMemberByEmail(String email) {
+        WebElement searchInput = wait.until(ExpectedConditions.visibilityOfElementLocated(shareSearchInputLocator));
+        searchInput.clear();
+        searchInput.sendKeys(email);
+
+        try {
+            WebElement suggestion = new WebDriverWait(driver, Duration.ofSeconds(5))
+                    .until(ExpectedConditions.elementToBeClickable(typeaheadSuggestionLocator));
+            suggestion.click();
+        } catch (Exception e) {
+            // No typeahead suggestion - fall through and let the Share button send an
+            // external invite for the typed email.
+        }
+
+        WebElement sendInviteButton =
+                wait.until(ExpectedConditions.elementToBeClickable(sendInviteButtonLocator));
+        sendInviteButton.click();
+    }
+
+    /**
+     * Check whether a member is listed on the board. Assumes the Share dialog (or
+     * member list) is open.
+     *
+     * @param emailOrName Email or display name of the member to look for
+     * @return true if a matching member is found
+     */
+    public boolean isMemberOnBoard(String emailOrName) {
+        try {
+            List<WebElement> members = driver.findElements(memberItemLocator);
+            for (WebElement member : members) {
+                if (member.getText().contains(emailOrName)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Set a board member's role. Assumes the Share dialog (or member list) is open.
+     *
+     * @param emailOrName Email or display name of the member
+     * @param role        "Admin" or "Observer"
+     */
+    public void setMemberRole(String emailOrName, String role) {
+        WebElement memberRow = findMemberRow(emailOrName);
+        WebElement roleSelect = memberRow.findElement(memberRoleSelectLocator);
+        roleSelect.click();
+
+        WebElement roleOption = wait.until(ExpectedConditions.elementToBeClickable(By.xpath(
+                "//*[@data-item-title='true'][normalize-space(text())='" + role + "']")));
+        roleOption.click();
+    }
+
+    /**
+     * Get a board member's current role. Assumes the Share dialog (or member list) is open.
+     *
+     * @param emailOrName Email or display name of the member
+     * @return Role text (e.g. "Admin", "Observer"), or empty string if not found
+     */
+    public String getMemberRole(String emailOrName) {
+        try {
+            WebElement memberRow = findMemberRow(emailOrName);
+            return memberRow.findElement(memberRoleSelectLocator).getText().trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private WebElement findMemberRow(String emailOrName) {
+        List<WebElement> members = driver.findElements(memberItemLocator);
+        for (WebElement member : members) {
+            if (member.getText().contains(emailOrName)) {
+                return member;
+            }
+        }
+        throw new IllegalStateException("No board member found matching: " + emailOrName);
+    }
+
+    /**
+     * Check whether the currently logged-in user can add a card - used to verify an
+     * Observer is restricted from editing.
+     *
+     * @return true if the add-card control is available on at least one list
+     */
+    public boolean isAddCardAvailable() {
+        try {
+            return !driver.findElements(addCardButtonLocator).isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check whether the Share button is available and enabled - used to verify an
+     * Admin has full board access.
+     *
+     * @return true if the Share button is present and enabled
+     */
+    public boolean isShareButtonEnabled() {
+        try {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(shareButtonLocator)).isEnabled();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -309,6 +493,7 @@ public class BoardPage {
         while (retries > 0 && !menuOpened) {
             safeClick(headerCreateMenuBtn);
             try {
+                // Wait briefly for the dropdown option to be visible
                 WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(2));
                 shortWait.until(
                         ExpectedConditions.visibilityOfElementLocated(headerCreateBoardBtn)
@@ -801,7 +986,7 @@ public class BoardPage {
                     "[DEBUG deleteBoardPermanently] boardDeleteConfirmBtn found — text: '" +
                             confirmBtn.getText() + "'"
             );
-            safeClick(boardDeleteConfirmBtn);
+            safeClick(deleteConfirmBtn);
             System.out.println("[DEBUG deleteBoardPermanently] boardDeleteConfirmBtn clicked.");
         } catch (Exception e) {
             System.out.println(
@@ -959,5 +1144,134 @@ public class BoardPage {
                 "  [BoardPage] Card in DOM — displayed: " + items.get(0).isDisplayed()
         );
         return notDisplayed;
+    }
+
+    // ─────────────────────────────────────────────
+    // DRAG AND DROP
+    // ─────────────────────────────────────────────
+
+    /**
+     * Drags a list header to reorder it on the board.
+     *
+     * @param sourceListName name of the list to drag
+     * @param targetListName name of the list to drop onto
+     */
+    /**
+     * Drags a list (by its header) to a new position relative to another list.
+     * Optimized with CSS selectors + Java filtering for speed.
+     *
+     * @param sourceListName name of the list to drag
+     * @param targetListName name of the list to drop near
+     */
+    public void dragListToPosition(String sourceListName, String targetListName) {
+        WebElement source = findListHeader(sourceListName);
+        WebElement target = findListHeader(targetListName);
+
+        if (source == null) {
+            throw new RuntimeException("Source list '" + sourceListName + "' not found");
+        }
+        if (target == null) {
+            throw new RuntimeException("Target list '" + targetListName + "' not found");
+        }
+
+        // Scroll source into center to ensure it's fully in viewport
+        ((JavascriptExecutor) driver).executeScript(
+                "arguments[0].scrollIntoView({behavior: 'instant', block: 'center', inline: 'center'});",
+                source
+        );
+        try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        // Re-locate after scroll
+        source = findListHeader(sourceListName);
+        target = findListHeader(targetListName);
+
+        // Check if target is within reasonable distance (avoid out-of-bounds)
+        int sourceX = source.getLocation().getX();
+        int targetX = target.getLocation().getX();
+        int distance = Math.abs(targetX - sourceX);
+
+        // If lists are far apart (>800px), scroll target partially into view
+        if (distance > 800) {
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].scrollIntoView({behavior: 'instant', block: 'center', inline: 'start'});",
+                    target
+            );
+            try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+            // Re-locate both after scroll
+            source = findListHeader(sourceListName);
+            target = findListHeader(targetListName);
+        }
+
+        Duration pause = Duration.ofMillis(1500);
+
+        try {
+            new org.openqa.selenium.interactions.Actions(driver)
+                    .moveToElement(source).pause(pause)
+                    .clickAndHold(source).pause(pause)
+                    .moveByOffset(5, 5).pause(pause)
+                    .moveToElement(target).pause(pause)
+                    .release().pause(pause)
+                    .build().perform();
+        } catch (org.openqa.selenium.interactions.MoveTargetOutOfBoundsException e) {
+            // If still out of bounds, try offset-based drag instead
+            System.out.println("WARNING: List drag out of bounds, attempting offset-based drag");
+            int offsetX = Math.min(Math.max(targetX - sourceX, -500), 500);  // Clamp to ±500px
+            new org.openqa.selenium.interactions.Actions(driver)
+                    .moveToElement(source).pause(pause)
+                    .clickAndHold(source).pause(pause)
+                    .moveByOffset(offsetX, 0).pause(pause)
+                    .release().pause(pause)
+                    .build().perform();
+        } catch (Exception e) {
+            System.out.println("WARNING: List drag failed: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * Find a list header element by name using CSS selectors + Java filtering.
+     * Much faster than XPath text matching.
+     */
+    private WebElement findListHeader(String listName) {
+        java.util.List<WebElement> headers = driver.findElements(By.cssSelector("[data-testid='list-name']"));
+
+        for (WebElement header : headers) {
+            try {
+                if (header.getText().contains(listName)) {
+                    return header;
+                }
+            } catch (Exception ignored) {
+                // Element stale or not visible, skip
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns the names of all lists on the board in their current order.
+     */
+    public java.util.List<String> getListOrder() {
+        return driver.findElements(
+                        By.xpath("//li[@data-testid='list-wrapper']//h2[@data-testid='list-name']//span"))
+                .stream()
+                .map(WebElement::getText)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Waits until the given list name has moved to a different index than the one provided.
+     *
+     * @param listName      list whose position is expected to change
+     * @param previousIndex the index it held before the drag
+     */
+    public void waitForListReorder(String listName, int previousIndex) {
+        wait.until(d -> {
+            java.util.List<String> names = d.findElements(
+                            By.xpath("//li[@data-testid='list-wrapper']//h2[@data-testid='list-name']//span"))
+                    .stream().map(WebElement::getText).collect(java.util.stream.Collectors.toList());
+            int idx = names.indexOf(listName);
+            return idx >= 0 && idx != previousIndex;
+        });
     }
 }
