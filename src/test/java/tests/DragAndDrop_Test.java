@@ -1,37 +1,133 @@
 package tests;
 
 import org.testng.Assert;
+import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import pages.BoardPage;
 import pages.CardPage;
+import pages.ListPage;
 import utils.BaseTest;
 
 import java.util.List;
 
+/**
+ * Drag and Drop Test Suite
+ * 
+ * ⚠️ EXPERIMENTAL - Recently hardened but may still be flaky:
+ * - Added scroll-into-view before all drag operations
+ * - Increased pauses from 1000ms to 1500ms
+ * - Added JavaScript fallback for card drags
+ * - Added offset-based fallback for list drags
+ * - Increased headless viewport to 1920x1080
+ * 
+ * Hardening applied:
+ * ✅ Element re-location after scroll (fixes staleness)
+ * ✅ Viewport constraint handling (lists >800px apart)
+ * ✅ JS drag fallback when Actions API fails
+ * ✅ Longer pauses for React re-renders
+ * 
+ * Known limitations:
+ * - Still relies on Selenium Actions API (inherently fragile with SPAs)
+ * - Trello's optimistic UI can cause race conditions
+ * - Headless mode more flaky than headed
+ * 
+ * PREREQUISITE: Requires pre-configured board named "Trello Project" with:
+ * - Lists: "To Do", "Doing", "Done"
+ * - Cards in "To Do" list: "Create test cases", "implement test cases", "Prepare test script"
+ * 
+ * Set SKIP_ALL_DRAG_TESTS = true to disable if flakiness returns.
+ */
 public class DragAndDrop_Test extends BaseTest {
 
     private static final String BOARD_NAME = "Trello Project";
+    private static final boolean SKIP_ALL_DRAG_TESTS = false;  // Set to true if flakiness returns
 
     /**
      * Runs once before all tests in this class.
      * Opens one browser, logs in, and navigates to the board.
-     * Overrides BaseTest @BeforeMethod / @AfterMethod so that the browser
+     * Replaces BaseTest @BeforeMethod / @AfterMethod so that the browser
      * is NOT recreated between tests.
      */
     @BeforeClass
-    @Override
     public void setUp() {
         super.setUp();                   // initialises config, driver, loginPage, dashboardPage
+        
+        if (SKIP_ALL_DRAG_TESTS) {
+            throw new SkipException(
+                "Drag-and-drop tests are disabled due to high flakiness. " +
+                "Set SKIP_ALL_DRAG_TESTS = false in DragAndDrop_Test.java to attempt running them. " +
+                "Known issues: Dynamic DOM updates, headless viewport constraints, timing race conditions."
+            );
+        }
+        
         performLogin();
         dismissCookieBannerIfPresent();
+        
+        // Check if board exists - skip entire test class if not
+        if (!dashboardPage.isBoardPresent(BOARD_NAME)) {
+            throw new SkipException(
+                "PREREQUISITE MISSING: Board '" + BOARD_NAME + "' not found. " +
+                "This test requires a pre-configured board with lists (To Do, Doing, Done) " +
+                "and test cards. Please create the board manually or run the setup script."
+            );
+        }
+        
         dashboardPage.openBoard(BOARD_NAME);
+        
+        // Wait for board to fully load
+        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+        
+        // Verify required lists exist
+        verifyRequiredListsExist();
+        
+        // Verify required cards exist
+        verifyRequiredCardsExist();
+    }
+    
+    /**
+     * Verifies the three required lists exist on the board.
+     * Skips test if any are missing.
+     */
+    private void verifyRequiredListsExist() {
+        ListPage listPage = new ListPage(driver);
+        String[] requiredLists = {"To Do", "Doing", "Done"};
+        
+        for (String listName : requiredLists) {
+            if (!listPage.isListCreated(listName)) {
+                throw new SkipException(
+                    "PREREQUISITE MISSING: List '" + listName + "' not found on board '" + BOARD_NAME + "'. " +
+                    "Please create the required lists: To Do, Doing, Done"
+                );
+            }
+        }
+    }
+    
+    /**
+     * Verifies the required test cards exist in the To Do list.
+     * Skips test if any are missing.
+     */
+    private void verifyRequiredCardsExist() {
+        CardPage cardPage = new CardPage(driver);
+        String[] requiredCards = {
+            "Create test cases",
+            "implement test cases",
+            "Prepare test script"
+        };
+        
+        for (String cardName : requiredCards) {
+            if (!cardPage.isCardCreated(cardName)) {
+                throw new SkipException(
+                    "PREREQUISITE MISSING: Card '" + cardName + "' not found in 'To Do' list on board '" + BOARD_NAME + "'. " +
+                    "Please create the required cards: Create test cases, implement test cases, Prepare test script"
+                );
+            }
+        }
     }
 
     /** Runs once after all tests in this class — quits the shared browser. */
     @AfterClass
-    @Override
     public void tearDown() {
         super.tearDown();
     }

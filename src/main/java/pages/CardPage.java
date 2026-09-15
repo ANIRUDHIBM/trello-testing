@@ -1,116 +1,6 @@
 package pages;
 
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
-
-import java.time.Duration;
-import java.util.List;
-
-/**
- * Page Object Model for the open Trello card split-screen detail panel.
- * Covers assigning members, posting comments (plain and @mention), watching,
- * and reading the card's activity feed.
- */
-public class CardPage {
-
-    private final WebDriver driver;
-    private final WebDriverWait wait;
-
-    private By cardBackPanelLocator = By.cssSelector("[data-testid='card-back-panel']");
-
-    private By addToCardButtonLocator = By.cssSelector("button[aria-label='Add to card']");
-    private By addMembersMenuItemLocator = By.cssSelector("button[data-testid='card-back-members-button']");
-    private By memberSearchInputLocator = By.cssSelector("input[aria-label='Search members']");
-    private By memberSearchResultLocator =
-            By.cssSelector("button[data-testid='choose-member-item-add-member-button']");
-    private By assignedMemberAvatarLocator = By.cssSelector("button[data-testid='card-back-member-avatar']");
-
-    private By newCommentSkeletonButtonLocator =
-            By.cssSelector("button[data-testid='card-back-new-comment-input-skeleton']");
-    private By commentEditorLocator = By.cssSelector("[data-testid='editor-content-container'] .ProseMirror");
-    private By commentSaveButtonLocator = By.cssSelector("button[data-testid='card-back-comment-save-button']");
-
-    private By actionsButtonLocator = By.cssSelector("button[data-testid='card-back-actions-button']");
-    private By subscribedButtonLocator = By.cssSelector("button[data-testid='card-back-subscribed-button']");
-
-    private By activityFeedItemLocator = By.cssSelector("[data-testid='card-back-action']");
-
-    public CardPage(WebDriver driver) {
-        this.driver = driver;
-        this.wait = new WebDriverWait(driver, Duration.ofSeconds(15));
-    }
-
-    /**
-     * Check whether the card detail panel is currently open.
-     *
-     * @return true if the card back panel is visible
-     */
-    public boolean isCardOpen() {
-        try {
-            return wait.until(ExpectedConditions.visibilityOfElementLocated(cardBackPanelLocator)).isDisplayed();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Assign a member to the currently open card via the "Add to card" > Members popover.
-     * The search box filters candidates server-side by email/username/display name, so the
-     * first result after searching is taken as the match.
-     *
-     * @param emailOrUsernameFragment Email (or email local-part/username) fragment to search for
-     */
-    public void addMember(String emailOrUsernameFragment) {
-        WebElement addToCardButton = wait.until(ExpectedConditions.elementToBeClickable(addToCardButtonLocator));
-        addToCardButton.click();
-
-        WebElement membersItem = wait.until(ExpectedConditions.elementToBeClickable(addMembersMenuItemLocator));
-        membersItem.click();
-
-        if (isMemberAssigned(emailOrUsernameFragment)) {
-            // Already assigned (e.g. from a prior run) - clicking the search result again
-            // would toggle them off since the member picker is a toggle, not an add-only
-            // control. Nothing more to do.
-            new Actions(driver).sendKeys(Keys.ESCAPE).perform();
-            return;
-        }
-
-        WebElement searchInput = wait.until(ExpectedConditions.visibilityOfElementLocated(memberSearchInputLocator));
-        searchInput.sendKeys(emailOrUsernameFragment);
-
-        WebElement memberButton = wait.until(ExpectedConditions.elementToBeClickable(memberSearchResultLocator));
-        memberButton.click();
-
-        new Actions(driver).sendKeys(Keys.ESCAPE).perform();
-        // The avatar can take longer than the default wait to render after the toggle
-        // click, especially under repeated test load - give it extra room here rather
-        // than failing the whole flow over a slow render.
-        new WebDriverWait(driver, Duration.ofSeconds(30))
-                .until(d -> isMemberAssigned(emailOrUsernameFragment));
-    }
-
-    /**
-     * Check whether a member is assigned to the currently open card.
-     *
-     * @param nameOrUsernameFragment Fragment of the member's name or username to look for
-     * @return true if a matching assigned member avatar is found
-     */
-    public boolean isMemberAssigned(String nameOrUsernameFragment) {
-        try {
-            List<WebElement> avatars = driver.findElements(assignedMemberAvatarLocator);
-            for (WebElement avatar : avatars) {
-                String title = avatar.getAttribute("title");
-                if (title != null && title.contains(nameOrUsernameFragment)) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (Exception e) {
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.TimeoutException;
@@ -119,18 +9,19 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import utils.TestData;
+
 import java.time.Duration;
 import java.util.List;
-import utils.TestData;
 
 public class CardPage {
 
     private WebDriver driver;
     private WebDriverWait wait;
 
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     // LOCATORS
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     // "My Trello Board" link
     private By myTrelloBoard =
@@ -177,17 +68,91 @@ public class CardPage {
     private By coverColorSwatch = By.cssSelector("[data-testid^='color-tile-']");
     private By coverAppliedIndicator = By.cssSelector("[data-testid='card-cover']");
 
-    // ─────────────────────────────────────────────
+    // Collaboration locators (for comments, members, watching)
+    private By cardBackPanelLocator = By.cssSelector("[data-testid='card-back-panel']");
+    private By addToCardButtonLocator = By.cssSelector("button[aria-label='Add to card']");
+    private By addMembersMenuItemLocator = By.cssSelector("button[data-testid='card-back-members-button']");
+    private By memberSearchInputLocator = By.cssSelector("input[aria-label='Search members']");
+    private By memberSearchResultLocator = By.cssSelector("button[data-testid='choose-member-item-add-member-button']");
+    private By assignedMemberAvatarLocator = By.cssSelector("button[data-testid='card-back-member-avatar']");
+    private By newCommentSkeletonButtonLocator = By.cssSelector("button[data-testid='card-back-new-comment-input-skeleton']");
+    private By commentEditorLocator = By.cssSelector("[data-testid='editor-content-container'] .ProseMirror");
+    private By commentSaveButtonLocator = By.cssSelector("button[data-testid='card-back-comment-save-button']");
+    private By actionsButtonLocator = By.cssSelector("button[data-testid='card-back-actions-button']");
+    private By subscribedButtonLocator = By.cssSelector("button[data-testid='card-back-subscribed-button']");
+    private By activityFeedItemLocator = By.cssSelector("[data-testid='card-back-action']");
+
+
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     // CONSTRUCTOR
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     public CardPage(WebDriver driver) {
         this.driver = driver;
         this.wait   = new WebDriverWait(driver, Duration.ofSeconds(15));
     }
 
     // ─────────────────────────────────────────────
-    // METHODS
+    // COLLABORATION METHODS (Members, Comments, Watching)
     // ─────────────────────────────────────────────
+
+    /**
+     * Check whether the card detail panel is currently open.
+     */
+    public boolean isCardOpen() {
+        try {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(cardBackPanelLocator)).isDisplayed();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Assign a member to the currently open card via the Add to card > Members popover.
+     */
+    public void addMember(String emailOrUsernameFragment) {
+        WebElement addToCardBtn = wait.until(ExpectedConditions.elementToBeClickable(addToCardButtonLocator));
+        addToCardBtn.click();
+
+        WebElement membersItem = wait.until(ExpectedConditions.elementToBeClickable(addMembersMenuItemLocator));
+        membersItem.click();
+
+        if (isMemberAssigned(emailOrUsernameFragment)) {
+            new Actions(driver).sendKeys(Keys.ESCAPE).perform();
+            return;
+        }
+
+        WebElement searchInput = wait.until(ExpectedConditions.visibilityOfElementLocated(memberSearchInputLocator));
+        searchInput.sendKeys(emailOrUsernameFragment);
+
+        WebElement memberButton = wait.until(ExpectedConditions.elementToBeClickable(memberSearchResultLocator));
+        memberButton.click();
+
+        new Actions(driver).sendKeys(Keys.ESCAPE).perform();
+        new WebDriverWait(driver, Duration.ofSeconds(30))
+                .until(d -> isMemberAssigned(emailOrUsernameFragment));
+    }
+
+    /**
+     * Check whether a member is assigned to the currently open card.
+     */
+    public boolean isMemberAssigned(String nameOrUsernameFragment) {
+        try {
+            List<WebElement> avatars = driver.findElements(assignedMemberAvatarLocator);
+            for (WebElement avatar : avatars) {
+                String title = avatar.getAttribute("title");
+                if (title != null && title.contains(nameOrUsernameFragment)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // METHODS
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /**
      * Clicks on "My Trello Board" from the dashboard
@@ -261,7 +226,7 @@ public class CardPage {
      */
     /**
      * Verifies if the card is visible on the board
-     * ✅ CORRECT: Clean XPath string concatenation
+     * Ã¢Å“â€¦ CORRECT: Clean XPath string concatenation
      *
      * @param cardTitle - Title of the card to verify
      * @return true if card is found, false otherwise
@@ -280,11 +245,11 @@ public class CardPage {
             return isVisible;
 
         } catch (Exception e) {
-            System.out.println("❌ Card NOT found: " + e.getMessage());
+            System.out.println("Ã¢ÂÅ’ Card NOT found: " + e.getMessage());
             return false;
         }
-
     }
+
 
 
 
@@ -504,6 +469,11 @@ public class CardPage {
         try {
             return wait.until(d -> d.findElements(activityFeedItemLocator).stream()
                     .anyMatch(entry -> entry.getText().contains(textFragment)));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public void clickLabels() {
 
         System.out.println("STEP: Clicking Labels...");
@@ -887,9 +857,9 @@ public class CardPage {
         System.out.println("============================");
     }
 
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     // ATTACHMENTS (link attachment)
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     public void clickAttachment() {
         System.out.println("STEP: Opening 'Add to card' menu...");
@@ -952,7 +922,6 @@ public class CardPage {
             return false;
         }
     }
-}
 
     public void ensureLinkAttached(String url) {
         if (isAttachmentPresent(url)) {
@@ -964,9 +933,9 @@ public class CardPage {
         confirmAttachLink();
     }
 
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     // COVER (solid color)
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     public void clickCover() {
         System.out.println("STEP: Clicking Cover...");
@@ -1007,9 +976,9 @@ public class CardPage {
 
 
 
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     // DRAG AND DROP
-    // ─────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /**
      * Drags a card by name from a source list to a target list.
@@ -1018,29 +987,190 @@ public class CardPage {
      * @param sourceList name of the list the card currently lives in
      * @param targetList name of the list to drop the card into
      */
+    /**
+     * Drags a card by name from a source list to a target list.
+     * Optimized with CSS selectors + Java filtering (much faster than XPath text matching).
+     *
+     * @param cardName   visible text of the card to drag
+     * @param sourceList name of the list the card currently lives in
+     * @param targetList name of the list to drop the card into
+     */
     public void dragCardToList(String cardName, String sourceList, String targetList) {
-        String cardsContainerXpath =
-                "//li[@data-testid='list-wrapper']" +
-                "[.//h2[@data-testid='list-name']//span[text()='%s']]" +
-                "//ol[@data-testid='list-cards']";
-
-        String cardLiXpath = cardsContainerXpath +
-                "//li[@data-testid='list-card'][.//a[@data-testid='card-name'][text()='" + cardName + "']]";
-
-        By sourceCardBy = By.xpath(String.format(cardLiXpath, sourceList));
-        By targetListBy = By.xpath(String.format(cardsContainerXpath, targetList));
-
-        WebElement sourceCard  = wait.until(ExpectedConditions.visibilityOfElementLocated(sourceCardBy));
-        WebElement targetListEl = wait.until(ExpectedConditions.visibilityOfElementLocated(targetListBy));
-
-        Duration pause = Duration.ofMillis(1000);
+        // Find source card <li> element (has draggable="true")
+        WebElement sourceCard = findCardInList(cardName, sourceList);
+        if (sourceCard == null) {
+            throw new RuntimeException("Card '" + cardName + "' not found in list '" + sourceList + "'");
+        }
+        
+        // Find target list's <ol> card container
+        WebElement targetListEl = findListCardContainer(targetList);
+        if (targetListEl == null) {
+            throw new RuntimeException("List '" + targetList + "' not found");
+        }
+        
+        System.out.println("DEBUG: Dragging card '" + cardName + "' from '" + sourceList + "' to '" + targetList + "'");
+        
+        // Chrome WebDriver properly synthesizes HTML5 drag events
         new Actions(driver)
-                .moveToElement(sourceCard).pause(pause)
-                .clickAndHold(sourceCard).pause(pause)
-                .moveByOffset(5, 5).pause(pause)
-                .moveToElement(targetListEl).pause(pause)
-                .release().pause(pause)
-                .build().perform();
+            .dragAndDrop(sourceCard, targetListEl)
+            .perform();
+        
+        // Wait for Trello's optimistic UI to settle
+        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+    
+    /**
+     * Find a card element by name within a specific list.
+     * Uses fast CSS selectors + Java text filtering instead of slow XPath.
+     */
+    private WebElement findCardInList(String cardName, String listName) {
+        // Find the list wrapper by filtering all lists
+        WebElement listWrapper = findListWrapper(listName);
+        if (listWrapper == null) {
+            System.out.println("DEBUG: List wrapper '" + listName + "' not found");
+            return null;
+        }
+        
+        // Wait a moment for cards to load (Trello lazy-loads card tiles)
+        try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        
+        // Get the list-cards container first
+        WebElement cardsContainer;
+        try {
+            cardsContainer = listWrapper.findElement(By.cssSelector("[data-testid='list-cards']"));
+        } catch (Exception e) {
+            System.out.println("DEBUG: list-cards container not found in list wrapper");
+            return null;
+        }
+        
+        // Get all card elements from the container
+        List<WebElement> cards = cardsContainer.findElements(By.cssSelector("[data-testid='list-card']"));
+        System.out.println("DEBUG: Found " + cards.size() + " cards in list '" + listName + "'");
+        
+        // Filter by card name text (use trim and equals for exact match)
+        for (WebElement card : cards) {
+            try {
+                WebElement cardNameEl = card.findElement(By.cssSelector("[data-testid='card-name']"));
+                String actualCardName = cardNameEl.getText().trim();
+                System.out.println("DEBUG: Checking card '" + actualCardName + "' against '" + cardName + "'");
+                
+                if (actualCardName.equals(cardName)) {
+                    System.out.println("DEBUG: Found matching card!");
+                    return card;
+                }
+            } catch (Exception e) {
+                // Card doesn't have card-name element, skip
+                System.out.println("DEBUG: Skipping card without card-name element");
+            }
+        }
+        
+        System.out.println("DEBUG: Card '" + cardName + "' not found in list '" + listName + "'");
+        return null;
+    }
+    
+    /**
+     * Find a list wrapper by name.
+     * Uses CSS selectors + Java filtering for speed.
+     */
+    private WebElement findListWrapper(String listName) {
+        List<WebElement> lists = driver.findElements(By.cssSelector("[data-testid='list-wrapper']"));
+        System.out.println("DEBUG: Found " + lists.size() + " list wrappers on board");
+        
+        for (WebElement list : lists) {
+            try {
+                WebElement listNameEl = list.findElement(By.cssSelector("[data-testid='list-name']"));
+                String actualListName = listNameEl.getText().trim();
+                System.out.println("DEBUG: Checking list '" + actualListName + "' against '" + listName + "'");
+                
+                if (actualListName.equals(listName)) {
+                    System.out.println("DEBUG: Found matching list!");
+                    return list;
+                }
+            } catch (Exception e) {
+                // List doesn't have list-name element, skip
+                System.out.println("DEBUG: Skipping list without list-name element");
+            }
+        }
+        
+        System.out.println("DEBUG: List '" + listName + "' not found");
+        return null;
+    }
+    
+    /**
+     * Find the card container (ol element) of a list by name.
+     */
+    private WebElement findListCardContainer(String listName) {
+        WebElement listWrapper = findListWrapper(listName);
+        if (listWrapper == null) return null;
+        
+        try {
+            return listWrapper.findElement(By.cssSelector("[data-testid='list-cards']"));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * Fallback drag implementation using JavaScript when Selenium Actions fail.
+     * Simulates full HTML5 drag-and-drop with proper DataTransfer object and mouse events.
+     */
+    private void dragCardViaJavaScript(WebElement source, WebElement target) {
+        String dragDropScript = 
+            "function simulateDragDrop(source, target) {" +
+            "  var dataTransfer = {" +
+            "    data: {}," +
+            "    dropEffect: 'move'," +
+            "    effectAllowed: 'all'," +
+            "    files: []," +
+            "    items: []," +
+            "    types: []," +
+            "    setData: function(format, data) {" +
+            "      this.data[format] = data;" +
+            "      if (this.types.indexOf(format) === -1) this.types.push(format);" +
+            "    }," +
+            "    getData: function(format) { return this.data[format]; }," +
+            "    clearData: function(format) { if (format) delete this.data[format]; else this.data = {}; }," +
+            "    setDragImage: function() {}" +
+            "  };" +
+            "" +
+            "  var rect = source.getBoundingClientRect();" +
+            "  var clientX = rect.left + rect.width / 2;" +
+            "  var clientY = rect.top + rect.height / 2;" +
+            "" +
+            "  // Dragstart" +
+            "  var dragstart = document.createEvent('DragEvent');" +
+            "  dragstart.initMouseEvent('dragstart', true, true, window, 0, 0, 0, clientX, clientY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(dragstart, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  source.dispatchEvent(dragstart);" +
+            "" +
+            "  var targetRect = target.getBoundingClientRect();" +
+            "  var targetX = targetRect.left + targetRect.width / 2;" +
+            "  var targetY = targetRect.top + targetRect.height / 2;" +
+            "" +
+            "  // Dragover on target" +
+            "  var dragover = document.createEvent('DragEvent');" +
+            "  dragover.initMouseEvent('dragover', true, true, window, 0, 0, 0, targetX, targetY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(dragover, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  target.dispatchEvent(dragover);" +
+            "" +
+            "  // Drop on target" +
+            "  var drop = document.createEvent('DragEvent');" +
+            "  drop.initMouseEvent('drop', true, true, window, 0, 0, 0, targetX, targetY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(drop, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  target.dispatchEvent(drop);" +
+            "" +
+            "  // Dragend on source" +
+            "  var dragend = document.createEvent('DragEvent');" +
+            "  dragend.initMouseEvent('dragend', true, true, window, 0, 0, 0, targetX, targetY, false, false, false, false, 0, null);" +
+            "  Object.defineProperty(dragend, 'dataTransfer', { value: dataTransfer, enumerable: true });" +
+            "  source.dispatchEvent(dragend);" +
+            "}" +
+            "simulateDragDrop(arguments[0], arguments[1]);";
+        
+        ((JavascriptExecutor) driver).executeScript(dragDropScript, source, target);
+        
+        // Wait for Trello's optimistic UI to settle
+        try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
 
     /**
@@ -1050,28 +1180,33 @@ public class CardPage {
      * @param targetCard  name of the card to drop onto (new position)
      * @param listName    list both cards belong to
      */
+    /**
+     * Drags a card within the same list to reorder it.
+     * Optimized with CSS selectors + Java filtering.
+     *
+     * @param cardName    name of the card to drag
+     * @param targetCard  name of the card to drop onto (new position)
+     * @param listName    list both cards belong to
+     */
     public void dragCardInList(String cardName, String targetCard, String listName) {
-        String listCardsXpath =
-                "//li[@data-testid='list-wrapper']" +
-                "[.//h2[@data-testid='list-name']//span[text()='" + listName + "']]" +
-                "//ol[@data-testid='list-cards']";
-
-        String cardXpath = listCardsXpath +
-                "//li[@data-testid='list-card'][.//a[@data-testid='card-name'][text()='%s']]";
-
-        WebElement source = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath(String.format(cardXpath, cardName))));
-        WebElement target = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath(String.format(cardXpath, targetCard))));
-
-        Duration pause = Duration.ofMillis(1000);
+        WebElement source = findCardInList(cardName, listName);
+        WebElement target = findCardInList(targetCard, listName);
+        
+        if (source == null) {
+            throw new RuntimeException("Source card '" + cardName + "' not found in list '" + listName + "'");
+        }
+        if (target == null) {
+            throw new RuntimeException("Target card '" + targetCard + "' not found in list '" + listName + "'");
+        }
+        
+        System.out.println("DEBUG: Reordering card '" + cardName + "' to position of '" + targetCard + "' in list '" + listName + "'");
+        
+        // Chrome WebDriver properly synthesizes HTML5 drag events
         new Actions(driver)
-                .moveToElement(source).pause(pause)
-                .clickAndHold(source).pause(pause)
-                .moveByOffset(5, 5).pause(pause)
-                .moveToElement(target).pause(pause)
-                .release().pause(pause)
-                .build().perform();
+            .dragAndDrop(source, target)
+            .perform();
+        
+        try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
 
     /**

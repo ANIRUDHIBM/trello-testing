@@ -191,18 +191,96 @@ A missing `config.properties` is not an error - the framework falls back to envi
 
 ## Running Tests
 
+### Quick Test Suites
+
 ```bash
-# All tests
+# Core tests (no special prerequisites)
+# Excludes: LoginTests, CollaborationTests, DragAndDrop_Test
+mvn test -DsuiteXmlFile=testng-exclude-login.xml
+
+# All tests (requires all prerequisites below)
 mvn clean test
 
 # Specific test class
-mvn test -Dtest=LoginTests
+mvn test -Dtest=BoardManagementTest
 
 # Specific test method
 mvn test -Dtest=LoginTests#testValidLogin
 ```
 
 In IntelliJ IDEA: right-click a test class or method and select Run - no suite file needed.
+
+### Test Prerequisites
+
+Some tests require specific setup:
+
+| Test Class | Prerequisites | How to Run |
+|------------|--------------|------------|
+| **LoginTests** | None - tests login functionality | Always runs |
+| **SeleniumTest** | None - simple smoke test | Always runs |
+| **BoardManagementTest** | None - creates board dynamically | Always runs |
+| **CardDetailsTest** | None - creates fixture board/list/card | Always runs |
+| **ListTests** | None - creates fixture board | Always runs |
+| **UIUXCrossBrowserTests** | None - creates fixture board/list/card | Always runs |
+| **CollaborationTests** | **Second Trello account** (see below) | Skips if `TRELLO_EMAIL_SECOND` not set |
+| **DragAndDrop_Test** | ⚠️ **Pre-configured board + EXPERIMENTAL** (see below) | Skips if board not found |
+
+#### CollaborationTests Setup
+
+Multi-user collaboration tests (inviting members, roles, @mentions) need a second Trello account:
+
+```cmd
+setx TRELLO_EMAIL_SECOND "second_account@example.com"
+setx TRELLO_PASSWORD_SECOND "second_password"
+```
+
+**Important:** The second account's display name must be "Rashmi" (configured in `CollaborationTests.secondAccountName()`). Change this in the test if your second account has a different name.
+
+Tests will **skip gracefully** if these variables aren't set - your build stays green.
+
+#### DragAndDrop_Test - Experimental (Hardened but Still Risky)
+
+⚠️ **This test is now ENABLED but experimental** after applying extensive hardening:
+
+**Hardening Applied:**
+- ✅ **Scroll-into-view** - Both source/target elements centered in viewport before drag
+- ✅ **Element re-location** - Re-finds elements after scroll (fixes staleness)
+- ✅ **JavaScript fallback** - Card drags fall back to JS dragstart/drop events if Actions API fails
+- ✅ **Viewport constraint handling** - List drags detect distance and use offset-based drag if >800px apart
+- ✅ **Increased pauses** - 1000ms → 1500ms to allow React re-renders
+- ✅ **Larger headless viewport** - Firefox headless now 1920x1080 (was 1366x683)
+
+**Prerequisite Setup:**
+1. **Create board:** "Trello Project"
+2. **Create lists:** "To Do", "Doing", "Done"
+3. **Create cards in "To Do" list:**
+   - "Create test cases"
+   - "implement test cases"
+   - "Prepare test script"
+
+Test will **skip with a clear message** if the board/lists/cards are missing.
+
+**Known Remaining Risks:**
+- Selenium Actions API fundamentally fragile with React SPAs (not a code bug)
+- Headless mode still more flaky than headed mode
+- Trello's optimistic UI can cause race conditions despite hardening
+
+**To disable if flakiness returns:** Set `SKIP_ALL_DRAG_TESTS = true` in `DragAndDrop_Test.java`.
+
+### Running Core Tests Only
+
+Use `testng-exclude-login.xml` to skip tests with special prerequisites:
+
+```bash
+mvn test -DsuiteXmlFile=testng-exclude-login.xml
+```
+
+This suite excludes:
+- LoginTests (standalone auth tests)
+- CollaborationTests (needs second account)
+- DragAndDrop_Test (needs pre-configured board)
+
+All other tests create their fixtures dynamically and run on fresh accounts.
 
 ## Writing New Page Objects
 

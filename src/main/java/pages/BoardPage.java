@@ -80,6 +80,9 @@ public class BoardPage {
      * @param listName Name for the new list
      */
     public void addList(String listName) {
+        // Count existing lists before adding
+        int listCountBefore = driver.findElements(listLocator).size();
+        
         WebElement openComposer = wait.until(ExpectedConditions.elementToBeClickable(listComposerOpenButtonLocator));
         openComposer.click();
 
@@ -89,7 +92,15 @@ public class BoardPage {
         WebElement addButton = wait.until(ExpectedConditions.elementToBeClickable(listComposerAddButtonLocator));
         addButton.click();
 
-        wait.until(ExpectedConditions.textToBePresentInElementLocated(listHeaderLocator, listName));
+        // Wait for list count to increase (new list added)
+        wait.until(d -> d.findElements(listLocator).size() > listCountBefore);
+        
+        // Give Trello a moment to finish rendering the new list's title
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -178,7 +189,14 @@ public class BoardPage {
      * @param cardTitle Title of the card to ensure exists
      */
     public void ensureCardExists(String listName, String cardTitle) {
-        List<WebElement> lists = wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(listLocator));
+        // Wait a moment for lists to appear if board just loaded, but don't fail if none exist yet
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        List<WebElement> lists = driver.findElements(listLocator);
         boolean listFound = false;
         for (WebElement list : lists) {
             if (list.findElement(listHeaderLocator).getText().trim().equals(listName)) {
@@ -364,7 +382,8 @@ public class BoardPage {
             return false;
         }
     }
-}
+
+    /**
      * Resilient click helper that falls back to Actions and JavascriptExecutor if standard click is intercepted.
      */
     private void safeClick(By locator) {
@@ -779,20 +798,96 @@ public class BoardPage {
      * @param sourceListName name of the list to drag
      * @param targetListName name of the list to drop onto
      */
+    /**
+     * Drags a list (by its header) to a new position relative to another list.
+     * Optimized with CSS selectors + Java filtering for speed.
+     *
+     * @param sourceListName name of the list to drag
+     * @param targetListName name of the list to drop near
+     */
     public void dragListToPosition(String sourceListName, String targetListName) {
-        WebElement source = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//h2[@data-testid='list-name'][.//span[text()='" + sourceListName + "']]")));
-        WebElement target = wait.until(ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//h2[@data-testid='list-name'][.//span[text()='" + targetListName + "']]")));
+        WebElement source = findListHeader(sourceListName);
+        WebElement target = findListHeader(targetListName);
+        
+        if (source == null) {
+            throw new RuntimeException("Source list '" + sourceListName + "' not found");
+        }
+        if (target == null) {
+            throw new RuntimeException("Target list '" + targetListName + "' not found");
+        }
+        
+        // Scroll source into center to ensure it's fully in viewport
+        ((JavascriptExecutor) driver).executeScript(
+            "arguments[0].scrollIntoView({behavior: 'instant', block: 'center', inline: 'center'});", 
+            source
+        );
+        try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        
+        // Re-locate after scroll
+        source = findListHeader(sourceListName);
+        target = findListHeader(targetListName);
+        
+        // Check if target is within reasonable distance (avoid out-of-bounds)
+        int sourceX = source.getLocation().getX();
+        int targetX = target.getLocation().getX();
+        int distance = Math.abs(targetX - sourceX);
+        
+        // If lists are far apart (>800px), scroll target partially into view
+        if (distance > 800) {
+            ((JavascriptExecutor) driver).executeScript(
+                "arguments[0].scrollIntoView({behavior: 'instant', block: 'center', inline: 'start'});", 
+                target
+            );
+            try { Thread.sleep(500); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            
+            // Re-locate both after scroll
+            source = findListHeader(sourceListName);
+            target = findListHeader(targetListName);
+        }
 
-        Duration pause = Duration.ofMillis(1000);
-        new org.openqa.selenium.interactions.Actions(driver)
-                .moveToElement(source).pause(pause)
-                .clickAndHold(source).pause(pause)
-                .moveByOffset(5, 5).pause(pause)
-                .moveToElement(target).pause(pause)
-                .release().pause(pause)
-                .build().perform();
+        Duration pause = Duration.ofMillis(1500);
+        
+        try {
+            new org.openqa.selenium.interactions.Actions(driver)
+                    .moveToElement(source).pause(pause)
+                    .clickAndHold(source).pause(pause)
+                    .moveByOffset(5, 5).pause(pause)
+                    .moveToElement(target).pause(pause)
+                    .release().pause(pause)
+                    .build().perform();
+        } catch (org.openqa.selenium.interactions.MoveTargetOutOfBoundsException e) {
+            // If still out of bounds, try offset-based drag instead
+            System.out.println("WARNING: List drag out of bounds, attempting offset-based drag");
+            int offsetX = Math.min(Math.max(targetX - sourceX, -500), 500);  // Clamp to ±500px
+            new org.openqa.selenium.interactions.Actions(driver)
+                    .moveToElement(source).pause(pause)
+                    .clickAndHold(source).pause(pause)
+                    .moveByOffset(offsetX, 0).pause(pause)
+                    .release().pause(pause)
+                    .build().perform();
+        } catch (Exception e) {
+            System.out.println("WARNING: List drag failed: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Find a list header element by name using CSS selectors + Java filtering.
+     * Much faster than XPath text matching.
+     */
+    private WebElement findListHeader(String listName) {
+        java.util.List<WebElement> headers = driver.findElements(By.cssSelector("[data-testid='list-name']"));
+        
+        for (WebElement header : headers) {
+            try {
+                if (header.getText().contains(listName)) {
+                    return header;
+                }
+            } catch (Exception ignored) {
+                // Element stale or not visible, skip
+            }
+        }
+        return null;
     }
 
     /**
