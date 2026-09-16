@@ -578,6 +578,22 @@ public class BoardPage {
 
         // Wait until redirected to the new board URL
         wait.until(ExpectedConditions.urlContains("/b/"));
+        
+        // Wait for board title to be displayed and match the expected name
+        // This ensures the board is fully created before returning
+        wait.until(ExpectedConditions.visibilityOfElementLocated(boardTitleDisplay));
+        
+        // Give Trello time to fully render and update the board title
+        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+        
+        // Wait for the board title to actually contain or match our board name
+        // Using a custom wait condition to handle long names that might be truncated
+        wait.until(driver -> {
+            String displayedTitle = getBoardTitle();
+            // For very long names, Trello might truncate, so check if it starts with first 50 chars
+            String namePrefix = name.length() > 50 ? name.substring(0, 50) : name;
+            return displayedTitle.contains(namePrefix) || displayedTitle.equals(name);
+        });
     }
 
 
@@ -1305,5 +1321,58 @@ public class BoardPage {
             int idx = names.indexOf(listName);
             return idx >= 0 && idx != previousIndex;
         });
+    }
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FIXTURE HELPERS — Ensure board/list/card prerequisites exist
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Ensures a board with the given name exists, creating it if necessary.
+     * Returns true if the board was created, false if it already existed.
+     *
+     * @param boardName Name of the board to ensure exists
+     * @return true if board was created, false if already existed
+     */
+    public boolean ensureBoardExists(String boardName) {
+        // Assume we're on the dashboard - check if board tile is present
+        try {
+            By boardTile = By.xpath(
+                    "//a[@title='" + boardName + "' and @aria-label='" + boardName + "']"
+            );
+            List<WebElement> boards = driver.findElements(boardTile);
+            if (!boards.isEmpty() && boards.get(0).isDisplayed()) {
+                System.out.println("[BoardPage] Board '" + boardName + "' already exists.");
+                return false;
+            }
+        } catch (Exception e) {
+            // Board not found, will create below
+        }
+
+        // Create the board
+        System.out.println("[BoardPage] Creating board: " + boardName);
+        createNewBoard(boardName);
+        System.out.println("[BoardPage] Board '" + boardName + "' created successfully.");
+        return true;
+    }
+
+    /**
+     * Opens a board by name if it exists.
+     * Should be called when you're on the dashboard.
+     *
+     * @param boardName Name of the board to open
+     */
+    public void openBoardByName(String boardName) {
+        By boardTile = By.xpath(
+                "//a[@title='" + boardName + "' and @aria-label='" + boardName + "']"
+        );
+        WebElement board = wait.until(
+                ExpectedConditions.elementToBeClickable(boardTile)
+        );
+        board.click();
+
+        // Wait for board to load
+        wait.until(ExpectedConditions.urlContains("/b/"));
     }
 }

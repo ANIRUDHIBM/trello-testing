@@ -13,6 +13,15 @@ import utils.BaseTest;
 
 import java.time.Duration;
 
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+import pages.BoardPage;
+import pages.ListPage;
+import pages.CardPage;
+import utils.BaseTest;
+
+import java.time.Duration;
+
 public class CardTests extends BaseTest {
 
     private BoardPage     boardPage;
@@ -52,45 +61,39 @@ public class CardTests extends BaseTest {
     // ─────────────────────────────────────────────────────
     @BeforeMethod
     public void navigateToBoard() {
+        // Call parent setup first (creates driver, initializes pages)
+        super.setUp();
+        
         System.out.println("=================================================");
-        System.out.println("SETUP: Logging in to Trello...");
+        System.out.println("SETUP: Logging in and ensuring fixture exists...");
         System.out.println("=================================================");
 
         performLogin();
-        System.out.println("SETUP: Login successful!");
+        dismissCookieBannerIfPresent();
 
         wait      = new WebDriverWait(driver, Duration.ofSeconds(20));
         boardPage = new BoardPage(driver);
         listPage  = new ListPage(driver);
         cardPage  = new CardPage(driver);
 
-        System.out.println("SETUP: Waiting for board '" + EXISTING_BOARD_NAME + "' to appear...");
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                boardTileLocator(EXISTING_BOARD_NAME)));
+        // Ensure board exists (uses POM method)
+        boolean boardCreated = false;
+        if (!dashboardPage.isBoardPresent(EXISTING_BOARD_NAME)) {
+            boardCreated = true;
+            boardPage.createNewBoard(EXISTING_BOARD_NAME);
+        } else {
+            dashboardPage.openBoard(EXISTING_BOARD_NAME);
+        }
 
-        System.out.println("SETUP: Navigating to board: " + EXISTING_BOARD_NAME);
-        wait.until(ExpectedConditions.elementToBeClickable(
-                boardTileLocator(EXISTING_BOARD_NAME)));
-        boardPage.openExistingBoard(EXISTING_BOARD_NAME);
-
-        System.out.println("SETUP: Waiting for board URL...");
+        // Wait for board to load
         wait.until(ExpectedConditions.urlContains("/b/"));
-
-        Assert.assertTrue(
-                driver.getCurrentUrl().contains("/b/"),
-                "SETUP FAILED: URL does not contain '/b/'"
-        );
         System.out.println("SETUP: Board opened. URL: " + driver.getCurrentUrl());
 
-        System.out.println("SETUP: Waiting for list '" + EXISTING_LIST_NAME + "'...");
-        wait.until(ExpectedConditions.visibilityOfElementLocated(
-                listHeaderLocator(EXISTING_LIST_NAME)));
-
-        listPage.openExistingList(EXISTING_LIST_NAME);
-        System.out.println("SETUP: List '" + EXISTING_LIST_NAME + "' located.");
+        // Ensure list exists (uses POM method)
+        listPage.ensureListExists(EXISTING_LIST_NAME);
 
         System.out.println("=================================================");
-        System.out.println("SETUP COMPLETE.");
+        System.out.println("SETUP COMPLETE. Fixture ready.");
         System.out.println("=================================================");
     }
 
