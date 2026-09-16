@@ -843,7 +843,16 @@ public class CardPage {
         );
 
         dateField.click();
-        dateField.clear();
+        
+        // Clear more thoroughly - use Ctrl+A and then type
+        dateField.sendKeys(Keys.CONTROL + "a");
+        dateField.sendKeys(Keys.BACK_SPACE);
+        
+        // Small pause to ensure field is cleared
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException ignored) {}
+        
         dateField.sendKeys(dueDate);
 
         System.out.println("STEP: Due date entered: " + dueDate);
@@ -862,6 +871,15 @@ public class CardPage {
         saveButton.click();
 
         System.out.println("STEP: Due date saved successfully.");
+        
+        // Wait for the date picker popup to close and the date badge to update
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException ignored) {}
+        
+        // Wait for the due date badge to be visible with the new date
+        By dueDateBadge = By.cssSelector("button[data-testid='due-date-badge-with-date-range-picker']");
+        wait.until(ExpectedConditions.visibilityOfElementLocated(dueDateBadge));
     }
 
     /**
@@ -905,6 +923,14 @@ public class CardPage {
         );
 
         checklist.click();
+        
+        // Wait for the checklist popup/menu to appear
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignored) {}
+        
+        // Ensure the checklist title field is visible (popup is loaded)
+        wait.until(ExpectedConditions.visibilityOfElementLocated(checklistTitleField));
 
         System.out.println("STEP: Checklist menu opened.");
     }
@@ -942,6 +968,14 @@ public class CardPage {
         addButton.click();
 
         System.out.println("STEP: Checklist added successfully.");
+        
+        // Wait for the checklist to be created and the item input field to appear
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException ignored) {}
+        
+        // Ensure the checklist item input field is now available
+        wait.until(ExpectedConditions.presenceOfElementLocated(checklistItemInput));
     }
 
     /**
@@ -1716,5 +1750,42 @@ public class CardPage {
                 .moveToElement(invalidTarget).pause(pause)
                 .release().pause(pause)
                 .build().perform();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FIXTURE HELPERS — Ensure card prerequisites exist
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Ensures a card with the given name exists, creating it if necessary.
+     * Returns true if the card was created, false if it already existed.
+     *
+     * @param cardName Name of the card to ensure exists
+     * @return true if card was created, false if already existed
+     */
+    public boolean ensureCardExists(String cardName) {
+        if (isCardCreated(cardName)) {
+            System.out.println("[CardPage] Card '" + cardName + "' already exists.");
+            return false;
+        }
+
+        System.out.println("[CardPage] Creating card: " + cardName);
+        clickAddCardButton();
+        enterCardTitle(cardName);
+        clickAddCardSubmit();
+        
+        // Wait and verify creation
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ignored) {}
+        
+        if (!isCardCreated(cardName)) {
+            throw new IllegalStateException(
+                "Failed to create card '" + cardName + "' - card not found after creation attempt."
+            );
+        }
+        
+        System.out.println("[CardPage] Card '" + cardName + "' created successfully.");
+        return true;
     }
 }

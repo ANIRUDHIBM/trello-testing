@@ -321,4 +321,35 @@ public class ListPage {
         }
         return names;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FIXTURE HELPERS — Ensure list prerequisites exist
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Ensures a list with the given name exists on the current board, creating it if necessary.
+     * Returns true if the list was created, false if it already existed.
+     *
+     * @param listName Name of the list to ensure exists
+     * @return true if list was created, false if already existed
+     */
+    public boolean ensureListExists(String listName) {
+        if (isListCreated(listName)) {
+            System.out.println("[ListPage] List '" + listName + "' already exists.");
+            return false;
+        }
+
+        System.out.println("[ListPage] Creating list: " + listName);
+        createList(listName);
+        
+        // Verify creation
+        if (!isListCreated(listName)) {
+            throw new IllegalStateException(
+                "Failed to create list '" + listName + "' - list not found after creation attempt."
+            );
+        }
+        
+        System.out.println("[ListPage] List '" + listName + "' created successfully.");
+        return true;
+    }
 }
